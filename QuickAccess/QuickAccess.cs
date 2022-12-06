@@ -162,53 +162,101 @@ public interface IContextMenu
     HRESULT GetCommandString(uint idCmd, uint uType, out uint pReserved, StringBuilder pszName, uint cchMax);
 }
 
-
 namespace QuickAccess
 {
+    public class BankAccount
+    {
+        private readonly string m_customerName;
+        private double m_balance;
+
+        private BankAccount() { }
+
+        public BankAccount(string customerName, double balance)
+        {
+            m_customerName = customerName;
+            m_balance = balance;
+        }
+
+        public string CustomerName
+        {
+            get { return m_customerName; }
+        }
+
+        public double Balance
+        {
+            get { return m_balance; }
+        }
+
+        public void Debit(double amount)
+        {
+            if (amount > m_balance)
+            {
+                throw new ArgumentOutOfRangeException("amount");
+            }
+
+            if (amount < 0)
+            {
+                throw new ArgumentOutOfRangeException("amount");
+            }
+
+            m_balance -= amount; // intentionally incorrect code
+        }
+
+        public void Credit(double amount)
+        {
+            if (amount < 0)
+            {
+                throw new ArgumentOutOfRangeException("amount");
+            }
+
+            m_balance += amount;
+        }
+    }
+
     public class QuickAccessHandler
     {
-        dynamic quickAccessShell;
-        List<string> QuickAccessMenuName;
-        List<string> FileExplorerMenuName;
-        string QuickAccessRegistryKeyPath;
+        private dynamic quickAccessShell;
+        public List<string> QuickAccessMenuName;
+        public List<string> FileExplorerMenuName;
+        private string QuickAccessRegistryKeyPath;
         public const int SEE_MASK_ASYNCOK = 0x00100000;
         public const int CMIC_MASK_ASYNCOK = SEE_MASK_ASYNCOK;
 
         // <resource name, resource path>
-        Dictionary<string, string> frequentFolders;
-        Dictionary<string, string> recentFiles;
-        Dictionary<string, string> unspecificContent;
+        private Dictionary<string, string> frequentFolders;
+        private Dictionary<string, string> recentFiles;
+        private Dictionary<string, string> unspecificContent;
 
         public enum QuickAccessType
         {
-            FrequentFolder = 0,
-            RecentFile,
-            Undefined
+            FrequentFolder = 1,
+            Undefined = 2,
+            RecentFile = 3
         }
 
         [DllImport("Shell32.dll", BestFitMapping = false, ThrowOnUnmappableChar = true)]
         private static extern void SHAddToRecentDocs(ShellAddToRecentDocsFlags flags, [MarshalAs(UnmanagedType.LPWStr)] string file);
 
         [DllImport("Shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        public static extern HRESULT SHILCreateFromPath([MarshalAs(UnmanagedType.LPWStr)] string pszPath, out IntPtr ppIdl, ref uint rgflnOut);
+        private static extern HRESULT SHILCreateFromPath([MarshalAs(UnmanagedType.LPWStr)] string pszPath, out IntPtr ppIdl, ref uint rgflnOut);
 
         [DllImport("Shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        public static extern HRESULT SHCreateItemFromIDList(IntPtr pidl, [In, MarshalAs(UnmanagedType.LPStruct)] Guid riid, out IShellItem ppv);
+        private static extern HRESULT SHCreateItemFromIDList(IntPtr pidl, [In, MarshalAs(UnmanagedType.LPStruct)] Guid riid, out IShellItem ppv);
 
         [DllImport("User32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        public static extern IntPtr CreatePopupMenu();
+        private static extern IntPtr CreatePopupMenu();
 
         [DllImport("User32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        public static extern int GetMenuItemCount(IntPtr hMenu);
+        private static extern int GetMenuItemCount(IntPtr hMenu);
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
-        public static extern bool GetMenuItemInfo(IntPtr hMenu, UInt32 uItem, bool fByPosition, [In, Out] MENUITEMINFO lpmii);
+        private static extern bool GetMenuItemInfo(IntPtr hMenu, UInt32 uItem, bool fByPosition, [In, Out] MENUITEMINFO lpmii);
 
         [DllImport("user32.dll")]
-        static extern int GetMenuString(IntPtr hMenu, uint uIDItem, [Out] StringBuilder lpString, int nMaxCount, uint uFlag);
+        private static extern int GetMenuString(IntPtr hMenu, uint uIDItem, [Out] StringBuilder lpString, int nMaxCount, uint uFlag);
 
         [DllImport("User32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        public static extern bool DestroyMenu(IntPtr hMenu);
+        private static extern bool DestroyMenu(IntPtr hMenu);
 
         public QuickAccessHandler()
         {
@@ -229,13 +277,27 @@ namespace QuickAccess
             return (File.Exists(path) ^ Directory.Exists(path));
         }
 
+        public bool IsInQuickAccessMenuName(string menuName)
+        {
+            return this.QuickAccessMenuName.Contains(menuName);
+        }
+
         public void AddQuickAccessMenuName(string menuName)
         {
+            if (this.IsInQuickAccessMenuName(menuName)) return;
+
             this.QuickAccessMenuName.Add(menuName);
+        }
+
+        public bool IsInFileExplorerMenuName(string menuName)
+        {
+            return this.FileExplorerMenuName.Contains(menuName);
         }
 
         public void AddFileExplorerMenuName(string menuName)
         {
+            if (this.IsInFileExplorerMenuName(menuName)) return;
+
             this.FileExplorerMenuName.Add(menuName);
         }
 
@@ -258,7 +320,7 @@ namespace QuickAccess
 
                 // only refresh windows explorers
                 string itemName = (string)itemType.InvokeMember("Name", System.Reflection.BindingFlags.GetProperty, null, item, null);
-                foreach(string menuName in this.FileExplorerMenuName)
+                foreach (string menuName in this.FileExplorerMenuName)
                 {
                     if (itemName == menuName)
                     {
@@ -275,9 +337,12 @@ namespace QuickAccess
             var CLSID_HomeFolder = new Guid("679f85cb-0220-4080-b29b-5540cc05aab6");
             var quickAccess = this.quickAccessShell.Namespace("shell:::" + CLSID_HomeFolder.ToString("B"));
 
+            List<int> groupList = new List<int> { };
+
             foreach (var item in quickAccess.Items())
             {
                 var grouping = (int)item.ExtendedProperty("System.Home.Grouping");
+                groupList.Add(grouping);
                 switch (grouping)
                 {
                     case (int)QuickAccessType.FrequentFolder:
@@ -304,6 +369,7 @@ namespace QuickAccess
                         break;
 
                     default:
+                        var fileGrouping = grouping;
                         if (this.unspecificContent.ContainsKey(item.name))
                         {
                             this.unspecificContent[item.name] = item.path;
@@ -322,9 +388,9 @@ namespace QuickAccess
             List<Dictionary<string, string>> quickAccessList = new List<Dictionary<string, string>> { this.frequentFolders, this.recentFiles, this.unspecificContent };
             Dictionary<string, string> quickAccessDict = new Dictionary<string, string>();
 
-            foreach(Dictionary<string, string> listItem in quickAccessList)
+            foreach (Dictionary<string, string> listItem in quickAccessList)
             {
-                foreach(KeyValuePair<string, string> quickAccessItem in listItem)
+                foreach (KeyValuePair<string, string> quickAccessItem in listItem)
                 {
                     quickAccessDict[quickAccessItem.Key] = quickAccessItem.Value;
                 }
@@ -342,13 +408,13 @@ namespace QuickAccess
         {
             return this.recentFiles;
         }
-        
+
 
         private bool IsPathInQuickAccess(string path)
         {
             if (IsValidPath(path))
             {
-                var qucikAccessList = new List<Dictionary<string, string>> { this.frequentFolders, this.recentFiles };
+                var qucikAccessList = new List<Dictionary<string, string>> { this.frequentFolders, this.recentFiles, this.unspecificContent };
 
                 foreach (Dictionary<string, string> item in qucikAccessList)
                 {
@@ -364,7 +430,7 @@ namespace QuickAccess
 
         private bool IsKeywordInQuickAccess(string keyword)
         {
-            var qucikAccessList = new List<Dictionary<string, string>> { this.frequentFolders, this.recentFiles };
+            var qucikAccessList = new List<Dictionary<string, string>> { this.frequentFolders, this.recentFiles, this.unspecificContent };
 
             foreach (Dictionary<string, string> accessDict in qucikAccessList)
             {
@@ -382,6 +448,18 @@ namespace QuickAccess
         public bool IsInQuickAccess(string data)
         {
             return (IsPathInQuickAccess(data) || IsKeywordInQuickAccess(data));
+        }
+
+        public bool AddToQuickAccess(string path)
+        {
+            if (!IsValidPath(path)) return false;
+            if (IsInQuickAccess(path)) return true;
+
+            SHAddToRecentDocs(ShellAddToRecentDocsFlags.SHARD_PATHW, path);
+
+            this.GetQuickAccess();
+
+            return IsInQuickAccess(path);
         }
 
         public bool RemoveFromQuickAccess(string path)
@@ -469,7 +547,7 @@ namespace QuickAccess
                                                     StringBuilder menuName = new StringBuilder();
                                                     GetMenuString(hMenu, (uint)i, menuName, menuName.Capacity, (uint)MenuString_Pos.MF_BYPOSITION);
 
-                                                    foreach(string item in this.QuickAccessMenuName)
+                                                    foreach (string item in this.QuickAccessMenuName)
                                                     {
                                                         if (menuName.ToString().Contains(item))
                                                         {
@@ -507,17 +585,6 @@ namespace QuickAccess
             return this.IsInQuickAccess(path);
         }
 
-        public bool AddToQuickAccess(string path)
-        {
-            if (!IsValidPath(path)) return false;
-
-            SHAddToRecentDocs(ShellAddToRecentDocsFlags.SHARD_PATHW, path);
-
-            this.GetQuickAccess();
-
-            return IsInQuickAccess(path);
-        }
-
         public void ClearRecent()
         {
             SHAddToRecentDocs(ShellAddToRecentDocsFlags.SHARD_PIDL, null);
@@ -531,11 +598,25 @@ namespace QuickAccess
             hkExplorer.SetValue(keyName, keyValue ? 1 : 0, RegistryValueKind.DWord);
         }
 
-        public void IsShowQuickAccess(uint accessType, bool isShow)
+        private bool GetQuickAccessRegistryKey(string keyName)
         {
-            UpdateQuickAccessRegistryKey((accessType == (uint)QuickAccessType.FrequentFolder ? "ShowRecent" : "ShowFrequent"), isShow);
+            RegistryKey hklm = Registry.CurrentUser;
+            RegistryKey hkExplorer = hklm.OpenSubKey(this.QuickAccessRegistryKeyPath);
+
+            var currentValue = (int)hkExplorer.GetValue(keyName);
+
+            return currentValue > 0 ? true : false;
+        }
+
+        public bool IsShowQuickAccess(QuickAccessHandler.QuickAccessType accessType, bool isShow)
+        {
+            var keyName = (accessType == QuickAccessType.FrequentFolder ? "ShowFrequent" : "ShowRecent");
+
+            UpdateQuickAccessRegistryKey(keyName, isShow);
 
             this.RefreshFileExplorer();
+
+            return GetQuickAccessRegistryKey(keyName);
         }
     }
 }
