@@ -1,9 +1,9 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
-using clean_recent.ViewModels;
+using CleanRecent.ViewModels;
 using System;
 
-namespace clean_recent
+namespace CleanRecent
 {
     public class ViewLocator : IDataTemplate
     {

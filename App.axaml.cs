@@ -1,10 +1,10 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using clean_recent.ViewModels;
-using clean_recent.Views;
+using CleanRecent.ViewModels;
+using CleanRecent.Views;
 
-namespace clean_recent
+namespace CleanRecent
 {
     public partial class App : Application
     {
