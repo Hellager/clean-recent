@@ -1,6 +1,6 @@
 using Avalonia.Controls;
 
-namespace clean_recent.Views
+namespace CleanRecent.Views
 {
     public partial class MainWindow : Window
     {

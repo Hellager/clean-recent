@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace clean_recent.ViewModels
+namespace CleanRecent.ViewModels
 {
     public class MainWindowViewModel : ViewModelBase
     {
