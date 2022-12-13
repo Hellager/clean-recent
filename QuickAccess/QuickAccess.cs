@@ -164,75 +164,69 @@ public interface IContextMenu
 
 namespace QuickAccess
 {
-    public class BankAccount
-    {
-        private readonly string m_customerName;
-        private double m_balance;
-
-        private BankAccount() { }
-
-        public BankAccount(string customerName, double balance)
-        {
-            m_customerName = customerName;
-            m_balance = balance;
-        }
-
-        public string CustomerName
-        {
-            get { return m_customerName; }
-        }
-
-        public double Balance
-        {
-            get { return m_balance; }
-        }
-
-        public void Debit(double amount)
-        {
-            if (amount > m_balance)
-            {
-                throw new ArgumentOutOfRangeException("amount");
-            }
-
-            if (amount < 0)
-            {
-                throw new ArgumentOutOfRangeException("amount");
-            }
-
-            m_balance -= amount; // intentionally incorrect code
-        }
-
-        public void Credit(double amount)
-        {
-            if (amount < 0)
-            {
-                throw new ArgumentOutOfRangeException("amount");
-            }
-
-            m_balance += amount;
-        }
-    }
-
+    /// <summary>
+    /// Class <c>QuickAccessHandler</c> Handle windows quick access list.
+    /// </summary>
     public class QuickAccessHandler
     {
+        /// <summary>
+        /// Instance variable <c>quickAccessShell</c> A shell instance to handle various actions.
+        /// </summary>
         private dynamic quickAccessShell;
-        public List<string> QuickAccessMenuName;
-        public List<string> FileExplorerMenuName;
+
+        // check language code at https://learn.microsoft.com/en-us/microsoft-365/cloud-storage-partner-program/faq/languages
+
+        /// <summary>
+        /// Instance variable <c>QuickAccessMenuName</c> Store the quick access menu name in windows. In en-US, it should be "Quick access". <br /> If not set properly, will fail to remove item from quick access list.
+        /// </summary>
+        private Dictionary<string, string> QuickAccessMenuName;
+
+        /// <summary>
+        /// Instance variable <c>FileExplorerMenuName</c> Store the file explorer menu name in windows. <br /> In en-US, it should be "File Explorer"
+        /// </summary>
+        private Dictionary<string, string> FileExplorerMenuName;
+
+        /// <summary>
+        /// Instance variable <c>QuickAccessRegistryKeyPath</c> Represents the regisrty key path about quick access. <br /> Should be "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer".
+        /// </summary>
         private string QuickAccessRegistryKeyPath;
-        public const int SEE_MASK_ASYNCOK = 0x00100000;
-        public const int CMIC_MASK_ASYNCOK = SEE_MASK_ASYNCOK;
+
+        /// <summary>
+        /// Instance variable <c>SEE_MASK_ASYNCOK</c> fMask value for "unpinfromhome".
+        /// </summary>
+        private const int SEE_MASK_ASYNCOK = 0x00100000;
+
+        /// <summary>
+        /// Instance variable <c>SEE_MASK_ASYNCOK</c> fMask value for "remove from quick access".
+        /// </summary>
+        private const int CMIC_MASK_ASYNCOK = SEE_MASK_ASYNCOK;
 
         // <resource name, resource path>
+
+        /// <summary>
+        /// Instance variable <c>frequentFolders</c> Store frequent folders. key: folder name, value: folder path.
+        /// </summary>
         private Dictionary<string, string> frequentFolders;
+
+        /// <summary>
+        /// Instance variable <c>recentFiles</c> Store recent files. key: file name, value: file path.
+        /// </summary>
         private Dictionary<string, string> recentFiles;
+
+        /// <summary>
+        /// Instance variable <c>unspecificContent</c> Unknown type items in quick access list. key: itm name, value: item path.
+        /// </summary>
         private Dictionary<string, string> unspecificContent;
 
-        public enum QuickAccessType
-        {
-            FrequentFolder = 1,
-            Undefined = 2,
-            RecentFile = 3
-        }
+        ///// <summary>
+        ///// Instance variable <c>QuickAccessType</c> Enumeration of quick access items type: FrequentFolder, RecentFile, Undefined.
+        ///// </summary>
+        //public enum QuickAccessType
+        //{
+        //    FrequentFolder = 1,
+        //    Undefined = 2,
+        //    RecentFile = 3
+        //}
 
         [DllImport("Shell32.dll", BestFitMapping = false, ThrowOnUnmappableChar = true)]
         private static extern void SHAddToRecentDocs(ShellAddToRecentDocsFlags flags, [MarshalAs(UnmanagedType.LPWStr)] string file);
@@ -260,8 +254,18 @@ namespace QuickAccess
 
         public QuickAccessHandler()
         {
-            this.QuickAccessMenuName = new List<string> { "快速访问", "Quick access", "Accès rapide" };
-            this.FileExplorerMenuName = new List<string> { "文件资源管理器", "File Explorer", "Explorateur de fichiers" };
+            this.QuickAccessMenuName = new Dictionary<string, string>
+            {
+                {"zh-CN", "快速访问"},
+                {"en-US", "Quick access"},
+                {"fr-FR", "Accès rapide"}
+            };
+            this.FileExplorerMenuName = new Dictionary<string, string>
+            {
+                {"zh-CN", "文件资源管理器"},
+                {"en-US", "File Explorer"},
+                {"fr-FR", "Explorateur de fichiers"}
+            };
             this.QuickAccessRegistryKeyPath = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer";
             this.quickAccessShell = Activator.CreateInstance(Type.GetTypeFromProgID("Shell.Application"));
 
@@ -272,37 +276,133 @@ namespace QuickAccess
             GetQuickAccess();
         }
 
+        /// <summary>
+        /// This method checks whether given path is exists.
+        /// </summary>
+        /// (<paramref name="path"/>).
+        /// <returns>
+        /// True if the given path exists whether it's file or folder, else false.
+        /// </returns>
+        /// <param><c>path</c> is the given path string.</param>
         private bool IsValidPath(string path)
         {
             return (File.Exists(path) ^ Directory.Exists(path));
         }
 
+        /// <summary>
+        /// This method checks whether given menuName is in QuickAccessMenuName dict.
+        /// </summary>
+        /// (<paramref name="menuName"/>).
+        /// <returns>
+        /// True if the given menuName is in QuickAccessMenuName dict, else false.
+        /// </returns>
+        /// <param><c>menuName</c> is the given menuName string.</param>
         public bool IsInQuickAccessMenuName(string menuName)
         {
-            return this.QuickAccessMenuName.Contains(menuName);
+            foreach (string value in this.QuickAccessMenuName.Values)
+            {
+                if (menuName == value)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
-        public void AddQuickAccessMenuName(string menuName)
+        /// <summary>
+        /// This method checks whether given languageCode is supported language about QuickAccessMenuName.
+        /// </summary>
+        /// (<paramref name="languageCode"/>).
+        /// <returns>
+        /// True if the given languageCode is supported language about QuickAccessMenuName, else false.
+        /// </returns>
+        /// <param><c>languageCode</c> is the given languageCode string. For example 'en-US'.</param>
+        public bool IsSupportedQuickAccessLanguage(string languageCode)
         {
-            if (this.IsInQuickAccessMenuName(menuName)) return;
+            foreach (string key in this.QuickAccessMenuName.Keys)
+            {
+                if (languageCode == key)
+                {
+                    return true;
+                }
+            }
 
-            this.QuickAccessMenuName.Add(menuName);
+            return false;
         }
 
+        /// <summary>
+        /// This method adds given languageCode with given menuName to QuickAccessMenuName dict.
+        /// </summary>
+        /// (<paramref name="languageCode"/>,<paramref name="menuName"/>).
+        /// <param><c>languageCode</c> is the given languageCode string. For example 'en-US'.</param>
+        /// <param><c>menuName</c> is the given menuName string.</param>
+        public void AddQuickAccessMenuName(string languageCode, string menuName)
+        {
+            if (this.IsSupportedQuickAccessLanguage(languageCode) || this.IsInQuickAccessMenuName(menuName)) return;
+
+            this.QuickAccessMenuName.Add(languageCode, menuName);  
+        }
+
+        /// <summary>
+        /// This method checks whether given menuName is in FileExplorerMenuName dict.
+        /// </summary>
+        /// (<paramref name="menuName"/>).
+        /// <returns>
+        /// True if the given menuName is in FileExplorerMenuName dict, else false.
+        /// </returns>
+        /// <param><c>menuName</c> is the given menuName string.</param>
         public bool IsInFileExplorerMenuName(string menuName)
         {
-            return this.FileExplorerMenuName.Contains(menuName);
+            foreach (string value in this.FileExplorerMenuName.Values)
+            {
+                if (menuName == value)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
-        public void AddFileExplorerMenuName(string menuName)
+        /// <summary>
+        /// This method checks whether given languageCode is supported language about FileExplorerMenuName.
+        /// </summary>
+        /// (<paramref name="languageCode"/>).
+        /// <returns>
+        /// True if the given languageCode is supported language about FileExplorerMenuName, else false.
+        /// </returns>
+        /// <param><c>languageCode</c> is the given languageCode string. For example 'en-US'.</param>
+        public bool IsSupportedFileExplorerLanguage(string languageCode)
         {
-            if (this.IsInFileExplorerMenuName(menuName)) return;
+            foreach (string key in this.FileExplorerMenuName.Keys)
+            {
+                if (languageCode == key)
+                {
+                    return true;
+                }
+            }
 
-            this.FileExplorerMenuName.Add(menuName);
+            return false;
         }
 
-        // Refered from Adam
-        // https://stackoverflow.com/questions/2488727/refresh-windows-explorer-in-win7
+        /// <summary>
+        /// This method adds given languageCode with given menuName to FileExplorerMenuName dict.
+        /// </summary>
+        /// (<paramref name="languageCode"/>,<paramref name="menuName"/>).
+        /// <param><c>languageCode</c> is the given languageCode string. For example 'en-US'.</param>
+        /// <param><c>menuName</c> is the given menuName string.</param>
+        public void AddFileExplorerMenuName(string languageCode, string menuName)
+        {
+            if (this.IsSupportedFileExplorerLanguage(languageCode) || this.IsInFileExplorerMenuName(menuName)) return;
+
+            this.FileExplorerMenuName.Add(languageCode, menuName);
+        }
+
+        /// <summary>
+        /// This method refreshes the file explorer. Should correctly set FileExplorerMenuName dict to support different language. <br />
+        /// Refered from @Adam https://stackoverflow.com/questions/2488727/refresh-windows-explorer-in-win7
+        /// </summary>
         private void RefreshFileExplorer()
         {
             Guid CLSID_ShellApplication = new Guid("13709620-C279-11CE-A49E-444553540000");
@@ -320,7 +420,7 @@ namespace QuickAccess
 
                 // only refresh windows explorers
                 string itemName = (string)itemType.InvokeMember("Name", System.Reflection.BindingFlags.GetProperty, null, item, null);
-                foreach (string menuName in this.FileExplorerMenuName)
+                foreach (string menuName in this.FileExplorerMenuName.Values)
                 {
                     if (itemName == menuName)
                     {
@@ -330,8 +430,10 @@ namespace QuickAccess
             }
         }
 
-        // Refered from Simon Mourier
-        // https://stackoverflow.com/questions/41048080/how-do-i-get-the-name-of-each-item-in-windows-10-quick-access-items-list-and-p
+        /// <summary>
+        /// This method gets the quick access items throuth shell instance and stores them in frequentFolders/recentFiles/unspecificContent. <br />
+        /// Refered from @Simon Mourier https://stackoverflow.com/questions/41048080/how-do-i-get-the-name-of-each-item-in-windows-10-quick-access-items-list-and-p
+        /// </summary>
         private void GetQuickAccess()
         {
             var CLSID_HomeFolder = new Guid("679f85cb-0220-4080-b29b-5540cc05aab6");
@@ -383,6 +485,12 @@ namespace QuickAccess
             }
         }
 
+        /// <summary>
+        /// This method gets the quick access items in the form of a dictionary.
+        /// </summary>
+        /// <returns>
+        /// The quick access items dictionary combines frequentFolders/recentFiles/unspecificContent.
+        /// </returns>
         public Dictionary<string, string> GetQuickAccessDict()
         {
             List<Dictionary<string, string>> quickAccessList = new List<Dictionary<string, string>> { this.frequentFolders, this.recentFiles, this.unspecificContent };
@@ -399,17 +507,36 @@ namespace QuickAccess
             return quickAccessDict;
         }
 
+        /// <summary>
+        /// This method gets the frequent folders in quick access in the form of a dictionary.
+        /// </summary>
+        /// <returns>
+        /// The frequentFolders dictionary.
+        /// </returns>
         public Dictionary<string, string> GetFrequentFolders()
         {
             return this.frequentFolders;
         }
 
+        /// <summary>
+        /// This method gets the recent files in quick access in the form of a dictionary.
+        /// </summary>
+        /// <returns>
+        /// The recentFiles dictionary.
+        /// </returns>
         public Dictionary<string, string> GetRecentFiles()
         {
             return this.recentFiles;
         }
 
-
+        /// <summary>
+        /// This method checks whether given path is in quick access.
+        /// </summary>
+        /// (<paramref name="path"/>).
+        /// <returns>
+        /// True if the given path is valid and in quick access, else false.
+        /// </returns>
+        /// <param><c>path</c> is the given path string,</param>
         private bool IsPathInQuickAccess(string path)
         {
             if (IsValidPath(path))
@@ -428,6 +555,14 @@ namespace QuickAccess
             return false;
         }
 
+        /// <summary>
+        /// This method checks whether given keyword is in quick access.
+        /// </summary>
+        /// (<paramref name="keyword"/>).
+        /// <returns>
+        /// True if the given keyword is in quick access, else false.
+        /// </returns>
+        /// <param><c>keyword</c> is the given keyword string.</param>
         private bool IsKeywordInQuickAccess(string keyword)
         {
             var qucikAccessList = new List<Dictionary<string, string>> { this.frequentFolders, this.recentFiles, this.unspecificContent };
@@ -445,11 +580,27 @@ namespace QuickAccess
             return false;
         }
 
+        /// <summary>
+        /// This method checks whether given string is in quick access.
+        /// </summary>
+        /// (<paramref name="data"/>).
+        /// <returns>
+        /// True if the given string is in quick access, else false.
+        /// </returns>
+        /// <param><c>data</c> is the given string, whether it's full path or just keyword..</param>
         public bool IsInQuickAccess(string data)
         {
             return (IsPathInQuickAccess(data) || IsKeywordInQuickAccess(data));
         }
 
+        /// <summary>
+        /// This method adds given path to quick access.
+        /// </summary>
+        /// (<paramref name="path"/>).
+        /// <returns>
+        /// True if the given string is valid and in quick access after adding, else false.
+        /// </returns>
+        /// <param><c>path</c> is the given path string.</param>
         public bool AddToQuickAccess(string path)
         {
             if (!IsValidPath(path)) return false;
@@ -462,6 +613,14 @@ namespace QuickAccess
             return IsInQuickAccess(path);
         }
 
+        /// <summary>
+        /// This method removes given path from quick access.
+        /// </summary>
+        /// (<paramref name="path"/>).
+        /// <returns>
+        /// True if the given string is not in quick access after removing, else false.
+        /// </returns>
+        /// <param><c>path</c> is the given path string.</param>
         public bool RemoveFromQuickAccess(string path)
         {
             if (!IsValidPath(path)) return false;
@@ -547,7 +706,7 @@ namespace QuickAccess
                                                     StringBuilder menuName = new StringBuilder();
                                                     GetMenuString(hMenu, (uint)i, menuName, menuName.Capacity, (uint)MenuString_Pos.MF_BYPOSITION);
 
-                                                    foreach (string item in this.QuickAccessMenuName)
+                                                    foreach (string item in this.QuickAccessMenuName.Values)
                                                     {
                                                         if (menuName.ToString().Contains(item))
                                                         {
@@ -582,14 +741,23 @@ namespace QuickAccess
 
             this.GetQuickAccess();
 
-            return this.IsInQuickAccess(path);
+            return !this.IsInQuickAccess(path);
         }
 
+        /// <summary>
+        /// This method clears the quick access.
+        /// </summary>
         public void ClearRecent()
         {
             SHAddToRecentDocs(ShellAddToRecentDocsFlags.SHARD_PIDL, null);
         }
 
+        /// <summary>
+        /// This method updates the registry key value about quick access.
+        /// </summary>
+        /// (<paramref name="keyName"/>,<paramref name="keyValue"/>).
+        /// <param><c>keyName</c> is the quick access registry key name.</param>
+        /// <param><c>keyValue</c> is new value about given registry key.</param>
         private void UpdateQuickAccessRegistryKey(string keyName, bool keyValue)
         {
             RegistryKey hklm = Registry.CurrentUser;
@@ -598,6 +766,14 @@ namespace QuickAccess
             hkExplorer.SetValue(keyName, keyValue ? 1 : 0, RegistryValueKind.DWord);
         }
 
+        /// <summary>
+        /// This method gets the registry key value about quick access.
+        /// </summary>
+        /// (<paramref name="keyName"/>).
+        /// <returns>
+        /// True if the given registry key's value is not zero, else false.
+        /// </returns>
+        /// <param><c>keyName</c> is the quick access registry key name.</param>
         private bool GetQuickAccessRegistryKey(string keyName)
         {
             RegistryKey hklm = Registry.CurrentUser;
@@ -608,15 +784,54 @@ namespace QuickAccess
             return currentValue > 0 ? true : false;
         }
 
-        public bool IsShowQuickAccess(QuickAccessHandler.QuickAccessType accessType, bool isShow)
+        /// <summary>
+        /// This method checks whether show frequent folders or recent files.
+        /// </summary>
+        /// (<paramref name="accessType"/>).
+        /// <param><c>keyName</c> is the quick access type. 1 for frequent folder, 2 for recent files, other returns false.</param>
+        public bool IsShowQuickAccess(uint accessType)
         {
-            var keyName = (accessType == QuickAccessType.FrequentFolder ? "ShowFrequent" : "ShowRecent");
+            bool isShow = false;
+            if (accessType == 1)
+            {
+                isShow = GetQuickAccessRegistryKey("ShowFrequent");
+            }
+            else if (accessType == 2)
+            {
+                isShow = GetQuickAccessRegistryKey("ShowRecent");
+            }
+            else
+            {
+                return false;
+            }
 
-            UpdateQuickAccessRegistryKey(keyName, isShow);
+            return isShow;
+        }
+
+        /// <summary>
+        /// This method updates whether show frequent folders or recent files and will auto refresh file explorer if set language properly.
+        /// </summary>
+        /// (<paramref name="accessType"/>, <paramref name="isShow"/>).
+        /// <param><c>keyName</c> is the quick access type. 0 for both, 1 for frequent folder, 2 for recent files, other returns false.</param>
+        /// <param><c>isShow</c> whether show.</param>
+        public void UpdateShowQuickAccess(uint accessType, bool isShow)
+        {
+            if (accessType == 0)
+            {
+                UpdateQuickAccessRegistryKey("ShowFrequent", isShow);
+                UpdateQuickAccessRegistryKey("ShowRecent", isShow);
+            } else if (accessType == 1)
+            {
+                UpdateQuickAccessRegistryKey("ShowFrequent", isShow);
+            } else if (accessType == 2)
+            {
+                UpdateQuickAccessRegistryKey("ShowRecent", isShow);
+            } else
+            {
+                return;
+            }
 
             this.RefreshFileExplorer();
-
-            return GetQuickAccessRegistryKey(keyName);
         }
     }
 }

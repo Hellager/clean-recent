@@ -3,31 +3,42 @@ namespace QuickAccessTests
     [TestClass]
     public class QuickAccessTests
     {
-        //[TestMethod]
-        //public void Debit_WithValidAmount_UpdatesBalance()
-        //{
-        //    // Arrange
-        //    double beginningBalance = 11.99;
-        //    double debitAmount = 4.55;
-        //    double expected = 7.44;
-        //    BankAccount account = new BankAccount("Mr. Bryan Walton", beginningBalance);
+        [TestMethod]
+        public void CheckIsSupportedLanguage_InQuickAccessMenuName()
+        {
+            QuickAccessHandler handler = new QuickAccessHandler();
 
-        //    // Act
-        //    account.Debit(debitAmount);
+            var defaultSupportedLanguage = "en-US";
+            bool isSupported = handler.IsSupportedQuickAccessLanguage(defaultSupportedLanguage);
+            Assert.IsTrue(isSupported, "Should support en-US by default");
 
-        //    // Assert
-        //    double actual = account.Balance;
-        //    Assert.AreEqual(expected, actual, 0.001, "Account not debited correctly");
-        //}
+            var checkSupportedLangeage = "ru-Ru";
+            bool isNewLanguageSupported = handler.IsSupportedQuickAccessLanguage(checkSupportedLangeage);
+            Assert.IsFalse(isNewLanguageSupported, "Should not support ru-Ru by default");
+        }
+
+        [TestMethod]
+        public void CheckIsSupportedLanguage_InFileExplorerMenuName()
+        {
+            QuickAccessHandler handler = new QuickAccessHandler();
+
+            var defaultSupportedLanguage = "en-US";
+            bool isSupported = handler.IsSupportedFileExplorerLanguage(defaultSupportedLanguage);
+            Assert.IsTrue(isSupported, "Should support en-US by default");
+
+            var checkSupportedLangeage = "ru-Ru";
+            bool isNewLanguageSupported = handler.IsSupportedFileExplorerLanguage(checkSupportedLangeage);
+            Assert.IsFalse(isNewLanguageSupported, "Should not support ru-Ru by default");
+        }
 
         [TestMethod]
         public void AddQuickAccessMenuName_WithGivenName()
         {
             QuickAccessHandler handler = new QuickAccessHandler();
 
-            handler.AddQuickAccessMenuName("SomeMenuName");
+            handler.AddQuickAccessMenuName("zh-TW", "²âÊÔ");
 
-            bool addRes = handler.IsInQuickAccessMenuName("SomeMenuName");
+            bool addRes = handler.IsInQuickAccessMenuName("²âÊÔ");
             Assert.IsTrue(addRes, "Failed add menuName to handler");
         }
 
@@ -36,9 +47,9 @@ namespace QuickAccessTests
         {
             QuickAccessHandler handler = new QuickAccessHandler();
 
-            handler.AddFileExplorerMenuName("SomeMenuName");
+            handler.AddFileExplorerMenuName("zh-TW", "²âÊÔ");
 
-            bool addRes = handler.IsInFileExplorerMenuName("SomeMenuName");
+            bool addRes = handler.IsInFileExplorerMenuName("²âÊÔ");
             Assert.IsTrue(addRes, "Failed add menuName to handler");
         }
 
@@ -99,86 +110,86 @@ namespace QuickAccessTests
             Assert.IsFalse(keywordRes, "Should not be in quick access");
         }
 
-        [TestMethod]
-        public void AddToQuickAccess_WithGivenPath()
-        {
-            QuickAccessHandler handler = new QuickAccessHandler();
+        //[TestMethod]
+        //public void AddToQuickAccess_WithGivenPath()
+        //{
+        //    QuickAccessHandler handler = new QuickAccessHandler();
 
-            string testPath = @"D:\test_add.txt";
-            try
-            {
-                if (!File.Exists(testPath))
-                {
-                    File.Create(testPath);
-                }
-            }
-            catch (IOException e)
-            {
-                Console.WriteLine("Failed to delete test file. Errmsg: " + e);
-            }
+        //    string testPath = @"D:\test_add.txt";
+        //    try
+        //    {
+        //        if (!File.Exists(testPath))
+        //        {
+        //            File.Create(testPath);
+        //        }
+        //    }
+        //    catch (IOException e)
+        //    {
+        //        Console.WriteLine("Failed to delete test file. Errmsg: " + e);
+        //    }
 
-            bool isTestPathExists = File.Exists(testPath);
+        //    bool isTestPathExists = File.Exists(testPath);
 
-            Assert.IsTrue(isTestPathExists, "Failed to create test file");
+        //    Assert.IsTrue(isTestPathExists, "Failed to create test file");
 
-            // Since the function will directly return IsInQuickAccess(), no need to check it twice
-            bool addRes = handler.AddToQuickAccess(testPath);
-            Assert.IsTrue(addRes, "Failed to add test file to quick access");
+        //    // Since the function will directly return IsInQuickAccess(), no need to check it twice
+        //    bool addRes = handler.AddToQuickAccess(testPath);
+        //    Assert.IsTrue(addRes, "Failed to add test file to quick access");
 
-            bool addAnyRes = handler.AddToQuickAccess(@"Steins");
-            Assert.IsFalse(addAnyRes, "Should be false by adding a not valid path to quick access");
+        //    bool addAnyRes = handler.AddToQuickAccess(@"Steins");
+        //    Assert.IsFalse(addAnyRes, "Should be false by adding a not valid path to quick access");
 
-            //bool removeRes = handler.RemoveFromQuickAccess(testPath);
-            //Assert.IsTrue(removeRes, "Failed to remove test file from quick access");
+        //    //bool removeRes = handler.RemoveFromQuickAccess(testPath);
+        //    //Assert.IsTrue(removeRes, "Failed to remove test file from quick access");
 
-            try
-            {
-                File.Delete(testPath);
-            }
-            catch (IOException e)
-            {
-                Console.WriteLine("Failed to delete test file. Errmsg: " + e);
-            }
-        }
+        //    try
+        //    {
+        //        File.Delete(testPath);
+        //    }
+        //    catch (IOException e)
+        //    {
+        //        Console.WriteLine("Failed to delete test file. Errmsg: " + e);
+        //    }
+        //}
 
-        [TestMethod]
-        public void RemoveFromQuickAccess_WithAddFirst()
-        {
-            QuickAccessHandler handler = new QuickAccessHandler();
+        //[TestMethod]
+        //public void RemoveFromQuickAccess_WithAddFirst()
+        //{
+        //    QuickAccessHandler handler = new QuickAccessHandler();
 
-            string testPath = @"D:\test_remove.txt";
-            try
-            {
-                if (!File.Exists(testPath))
-                {
-                    File.Create(testPath);
-                }
-            }
-            catch (IOException e)
-            {
-                Console.WriteLine("Failed to delete test file. Errmsg: " + e);
-            }
+        //    string testPath = @"D:\test_remove.txt";
+        //    try
+        //    {
+        //        if (!File.Exists(testPath))
+        //        {
+        //            File.Create(testPath);
+        //        }
+        //    }
+        //    catch (IOException e)
+        //    {
+        //        Console.WriteLine("Failed to delete test file. Errmsg: " + e);
+        //    }
 
-            bool isTestPathExists = File.Exists(testPath);
+        //    bool isTestPathExists = File.Exists(testPath);
 
-            Assert.IsTrue(isTestPathExists, "Failed to create test file");
+        //    Assert.IsTrue(isTestPathExists, "Failed to create test file");
 
-            // Since the function will directly return IsInQuickAccess(), no need to check it twice
-            bool addRes = handler.AddToQuickAccess(testPath);
-            Assert.IsTrue(addRes, "Failed to add test file to quick access");
+        //    // Since the function will directly return IsInQuickAccess(), no need to check it twice
+        //    bool addRes = handler.AddToQuickAccess(testPath);
+        //    Assert.IsTrue(addRes, "Failed to add test file to quick access");
 
-            bool removeRes = handler.RemoveFromQuickAccess(testPath);
-            Assert.IsTrue(removeRes, "Failed to remove test file from quick access");
+        //    bool removeRes = handler.RemoveFromQuickAccess(testPath);
+        //    Assert.IsTrue(removeRes, "Failed to remove test file from quick access");
 
-            try
-            {
-                File.Delete(testPath);
-            }
-            catch (IOException e)
-            {
-                Console.WriteLine("Failed to delete test file. Errmsg: " + e);
-            }
-        }
+        //    try
+        //    {
+        //        File.Delete(testPath);
+        //    }
+        //    catch (IOException e)
+        //    {
+        //        Console.WriteLine("Failed to delete test file. Errmsg: " + e);
+        //    }
+        //}
 
         //[TestMethod]
         //public void ClearRecent_IsDangerAction()
@@ -207,11 +218,12 @@ namespace QuickAccessTests
                 hkExplorer.SetValue("ShowFrequent", 1, RegistryValueKind.DWord);
             }
             var currentFrequentKey = (int)hkExplorer.GetValue("ShowFrequent");
-            bool isUpdateShowFrequent = handler.IsShowQuickAccess(QuickAccessHandler.QuickAccessType.FrequentFolder, currentFrequentKey > 0 ? false : true);
+            handler.UpdateShowQuickAccess(1, currentFrequentKey > 0 ? false : true);
+            bool isUpdateShowFrequent = handler.IsShowQuickAccess(1);
 
             Assert.AreEqual(isUpdateShowFrequent, currentFrequentKey > 0 ? false : true, "Failed to update frequent folder show status");
 
-            handler.IsShowQuickAccess(QuickAccessHandler.QuickAccessType.FrequentFolder, !isUpdateShowFrequent);
+            handler.UpdateShowQuickAccess(1, !isUpdateShowFrequent);
 
             if (!hkExplorer.GetValueNames().Contains("ShowFrequent"))
             {
@@ -219,11 +231,12 @@ namespace QuickAccessTests
                 hkExplorer.SetValue("ShowRecent", 1, RegistryValueKind.DWord);
             }
             var currentRecentKey = (int)hkExplorer.GetValue("ShowRecent");
-            bool isUpdateShowRecent = handler.IsShowQuickAccess(QuickAccessHandler.QuickAccessType.RecentFile, currentRecentKey > 0 ? false : true);
+            handler.UpdateShowQuickAccess(2, currentFrequentKey > 0 ? false : true);
+            bool isUpdateShowRecent = handler.IsShowQuickAccess(2);
 
             Assert.AreEqual(isUpdateShowRecent, currentRecentKey > 0 ? false : true, "Failed to update recent file show status");
 
-            handler.IsShowQuickAccess(QuickAccessHandler.QuickAccessType.RecentFile, !isUpdateShowRecent);
+            handler.UpdateShowQuickAccess(2, !isUpdateShowRecent);
         }
     }
 }
