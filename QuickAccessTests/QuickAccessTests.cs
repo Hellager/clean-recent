@@ -32,13 +32,26 @@ namespace QuickAccessTests
         }
 
         [TestMethod]
+        public void CheckSupportLanguage_ByDefault()
+        {
+            QuickAccessHandler handler = new QuickAccessHandler();
+
+            List<string> defaultSupportLanguage = new List<string> { "zh-CN", "zh-TW", "en-US", "fr-FR", "ru-RU"};
+            var handlerSupportLanguage = handler.GetSupportLanguages();
+
+            var isSame = defaultSupportLanguage.All(handlerSupportLanguage.Contains) && (defaultSupportLanguage.Count == handlerSupportLanguage.Count);
+
+            Assert.IsTrue(isSame, "Missing default support language");
+        }
+
+        [TestMethod]
         public void AddQuickAccessMenuName_WithGivenName()
         {
             QuickAccessHandler handler = new QuickAccessHandler();
 
-            handler.AddQuickAccessMenuName("zh-TW", "²âÊÔ");
+            handler.AddQuickAccessMenuName("ja-JP", "¥Õ¥©¥ë¥À©`¤ò¥¯¥¤¥Ã¥¯ ¥¢¥¯¥»¥¹");
 
-            bool addRes = handler.IsInQuickAccessMenuName("²âÊÔ");
+            bool addRes = handler.IsInQuickAccessMenuName("¥Õ¥©¥ë¥À©`¤ò¥¯¥¤¥Ã¥¯ ¥¢¥¯¥»¥¹");
             Assert.IsTrue(addRes, "Failed add menuName to handler");
         }
 
@@ -47,9 +60,9 @@ namespace QuickAccessTests
         {
             QuickAccessHandler handler = new QuickAccessHandler();
 
-            handler.AddFileExplorerMenuName("zh-TW", "²âÊÔ");
+            handler.AddFileExplorerMenuName("ja-JP", "¥¨¥¯¥¹¥×¥í©`¥é©`");
 
-            bool addRes = handler.IsInFileExplorerMenuName("²âÊÔ");
+            bool addRes = handler.IsInFileExplorerMenuName("¥¨¥¯¥¹¥×¥í©`¥é©`");
             Assert.IsTrue(addRes, "Failed add menuName to handler");
         }
 

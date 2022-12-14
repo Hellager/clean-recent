@@ -2,6 +2,7 @@
 using System.IO;
 using System.Collections.Generic;
 using System.Text;
+using System.Linq;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using Shell32;
@@ -257,14 +258,18 @@ namespace QuickAccess
             this.QuickAccessMenuName = new Dictionary<string, string>
             {
                 {"zh-CN", "快速访问"},
+                {"zh-TW", "快速存取" },
                 {"en-US", "Quick access"},
-                {"fr-FR", "Accès rapide"}
+                {"fr-FR", "Accès rapide"},
+                {"ru-RU", "доступа" }
             };
             this.FileExplorerMenuName = new Dictionary<string, string>
             {
                 {"zh-CN", "文件资源管理器"},
+                {"zh-TW", "檔案總管" },
                 {"en-US", "File Explorer"},
-                {"fr-FR", "Explorateur de fichiers"}
+                {"fr-FR", "Explorateur de fichiers"},
+                {"ru-RU", "проводник" }
             };
             this.QuickAccessRegistryKeyPath = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer";
             this.quickAccessShell = Activator.CreateInstance(Type.GetTypeFromProgID("Shell.Application"));
@@ -397,6 +402,20 @@ namespace QuickAccess
             if (this.IsSupportedFileExplorerLanguage(languageCode) || this.IsInFileExplorerMenuName(menuName)) return;
 
             this.FileExplorerMenuName.Add(languageCode, menuName);
+        }
+
+        /// <summary>
+        /// This method gets the supported langugaes. Support zh-CN, zh-TW, en-US, fr-FR, ru-RU by default.
+        /// </summary>
+        /// <returns>
+        /// True if the given languageCode is supported language about FileExplorerMenuName, else false.
+        /// </returns>
+        public List<string> GetSupportLanguages()
+        {
+            List<string> supportQuickAccessLanguage = new List<string>(this.QuickAccessMenuName.Keys);
+            List<string> supportFileExplorerLanguage = new List<string>(this.FileExplorerMenuName.Keys);
+
+            return supportQuickAccessLanguage.Intersect(supportFileExplorerLanguage).ToList();
         }
 
         /// <summary>
