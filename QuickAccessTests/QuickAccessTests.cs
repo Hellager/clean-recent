@@ -205,16 +205,42 @@ namespace QuickAccessTests
         //}
 
         //[TestMethod]
+        //public void EmptyRecentFiles_IsDangerAction()
+        //{
+        //    QuickAccessHandler handler = new QuickAccessHandler();
+
+        //    handler.EmptyRecentFiles();
+
+        //    var currentRecentFiles = handler.GetRecentFiles();
+        //    var numberOfCurrentQuickAccess = currentRecentFiles.Count;
+
+        //    Assert.AreEqual(numberOfCurrentQuickAccess, 0, "Failed to empty recent files");
+        //}
+
+        //[TestMethod]
+        //public void EmptyFrequentFolders_IsDangerAction()
+        //{
+        //    QuickAccessHandler handler = new QuickAccessHandler();
+
+        //    handler.EmptyFrequentFolders();
+
+        //    var currentFrequentFolders = handler.GetFrequentFolders();
+        //    var numberOfCurrentQuickAccess = currentFrequentFolders.Count;
+
+        //    Assert.AreEqual(numberOfCurrentQuickAccess, 0, "Failed to empty frequent folders");
+        //}
+
+        //[TestMethod]
         //public void ClearRecent_IsDangerAction()
         //{
         //    QuickAccessHandler handler = new QuickAccessHandler();
 
-        //    handler.ClearRecent();
+        //    handler.EmptyQuickAccess();
 
         //    var currentQuickAccess = handler.GetQuickAccessDict();
         //    var numberOfCurrentQuickAccess = currentQuickAccess.Count;
 
-        //    Assert.AreEqual(numberOfCurrentQuickAccess, 0, "Failed to clear quick access list");
+        //    Assert.AreEqual(numberOfCurrentQuickAccess, 0, "Failed to empty quick access");
         //}
 
         [TestMethod]

@@ -205,17 +205,17 @@ namespace QuickAccess
         // <resource name, resource path>
 
         /// <summary>
-        /// Instance variable <c>frequentFolders</c> Store frequent folders. key: folder name, value: folder path.
+        /// Instance variable <c>frequentFolders</c> Store frequent folders. key: folder path, value: folder name.
         /// </summary>
         private Dictionary<string, string> frequentFolders;
 
         /// <summary>
-        /// Instance variable <c>recentFiles</c> Store recent files. key: file name, value: file path.
+        /// Instance variable <c>recentFiles</c> Store recent files. key: file path, value: file name.
         /// </summary>
         private Dictionary<string, string> recentFiles;
 
         /// <summary>
-        /// Instance variable <c>unspecificContent</c> Unknown type items in quick access list. key: itm name, value: item path.
+        /// Instance variable <c>unspecificContent</c> Unknown type items in quick access list. key: item path, value: item name.
         /// </summary>
         private Dictionary<string, string> unspecificContent;
 
@@ -467,37 +467,37 @@ namespace QuickAccess
                 switch (grouping)
                 {
                     case (int)QuickAccessType.FrequentFolder:
-                        if (this.frequentFolders.ContainsKey(item.name))
+                        if (this.frequentFolders.ContainsKey(item.path))
                         {
-                            this.frequentFolders[item.name] = item.path;
+                            this.frequentFolders[item.path] = item.name;
                         }
                         else
                         {
-                            this.frequentFolders.Add(item.name, item.path);
+                            this.frequentFolders.Add(item.path, item.name);
                         }
                         break;
 
                     case (int)QuickAccessType.RecentFile:
                         // File name will include its type, like myText.txt
-                        if (this.recentFiles.ContainsKey(item.name))
+                        if (this.recentFiles.ContainsKey(item.path))
                         {
-                            this.recentFiles[item.name] = item.path;
+                            this.recentFiles[item.path] = item.name;
                         }
                         else
                         {
-                            this.recentFiles.Add(item.name, item.path);
+                            this.recentFiles.Add(item.path, item.name);
                         }
                         break;
 
                     default:
                         var fileGrouping = grouping;
-                        if (this.unspecificContent.ContainsKey(item.name))
+                        if (this.unspecificContent.ContainsKey(item.path))
                         {
-                            this.unspecificContent[item.name] = item.path;
+                            this.unspecificContent[item.path] = item.name;
                         }
                         else
                         {
-                            this.unspecificContent.Add(item.name, item.path);
+                            this.unspecificContent.Add(item.path, item.name);
                         }
                         break;
                 }
@@ -512,6 +512,8 @@ namespace QuickAccess
         /// </returns>
         public Dictionary<string, string> GetQuickAccessDict()
         {
+            this.GetQuickAccess();
+
             List<Dictionary<string, string>> quickAccessList = new List<Dictionary<string, string>> { this.frequentFolders, this.recentFiles, this.unspecificContent };
             Dictionary<string, string> quickAccessDict = new Dictionary<string, string>();
 
@@ -534,6 +536,8 @@ namespace QuickAccess
         /// </returns>
         public Dictionary<string, string> GetFrequentFolders()
         {
+            this.GetQuickAccess();
+
             return this.frequentFolders;
         }
 
@@ -545,6 +549,8 @@ namespace QuickAccess
         /// </returns>
         public Dictionary<string, string> GetRecentFiles()
         {
+            this.GetQuickAccess();
+
             return this.recentFiles;
         }
 
@@ -558,13 +564,15 @@ namespace QuickAccess
         /// <param><c>path</c> is the given path string,</param>
         private bool IsPathInQuickAccess(string path)
         {
+            this.GetQuickAccess();
+
             if (IsValidPath(path))
             {
                 var qucikAccessList = new List<Dictionary<string, string>> { this.frequentFolders, this.recentFiles, this.unspecificContent };
 
                 foreach (Dictionary<string, string> item in qucikAccessList)
                 {
-                    if (item.ContainsValue(path))
+                    if (item.ContainsKey(path))
                     {
                         return true;
                     }
@@ -584,6 +592,8 @@ namespace QuickAccess
         /// <param><c>keyword</c> is the given keyword string.</param>
         private bool IsKeywordInQuickAccess(string keyword)
         {
+            this.GetQuickAccess();
+
             var qucikAccessList = new List<Dictionary<string, string>> { this.frequentFolders, this.recentFiles, this.unspecificContent };
 
             foreach (Dictionary<string, string> accessDict in qucikAccessList)
@@ -627,20 +637,18 @@ namespace QuickAccess
 
             SHAddToRecentDocs(ShellAddToRecentDocsFlags.SHARD_PATHW, path);
 
-            this.GetQuickAccess();
-
             return IsInQuickAccess(path);
         }
 
         /// <summary>
-        /// This method removes given path from quick access.
+        /// This method removes given full path item from quick access.
         /// </summary>
         /// (<paramref name="path"/>).
         /// <returns>
-        /// True if the given string is not in quick access after removing, else false.
+        /// True if the given full path item is not in quick access after removing, else false.
         /// </returns>
         /// <param><c>path</c> is the given path string.</param>
-        public bool RemoveFromQuickAccess(string path)
+        private bool RemoveFromQuickAccessWithFullPath(string path)
         {
             if (!IsValidPath(path)) return false;
 
@@ -758,17 +766,82 @@ namespace QuickAccess
                 }
             }
 
-            this.GetQuickAccess();
+            return !this.IsPathInQuickAccess(path);
+        }
 
-            return !this.IsInQuickAccess(path);
+        /// <summary>
+        /// This method removes given keyword item from quick access.
+        /// </summary>
+        /// (<paramref name="path"/>).
+        /// <returns>
+        /// True if the given keyword item is not in quick access after removing, else false.
+        /// </returns>
+        /// <param><c>keyword</c> is the given keyword string.</param>
+        private bool RemoveFromQuickAccessWithKeyword(string keyword)
+        {
+            var CurrentQuickAccessDict = this.GetQuickAccessDict();
+
+            foreach(var item in CurrentQuickAccessDict)
+            {
+                if (item.Key.Contains(keyword))
+                {
+                    this.RemoveFromQuickAccessWithFullPath(item.Key);
+                }
+            }
+
+            return !this.IsKeywordInQuickAccess(keyword);
+        }
+
+        /// <summary>
+        /// This method removes given data from quick access.
+        /// </summary>
+        /// (<paramref name="path"/>).
+        /// <returns>
+        /// True if the given data is not in quick access after removing, else false.
+        /// </returns>
+        /// <param><c>data</c> is the given data string.</param>
+        public bool RemoveFromQuickAccess(string data)
+        {
+            if (this.IsValidPath(data))
+            {
+                this.RemoveFromQuickAccessWithFullPath(data);
+            } else
+            {
+                this.RemoveFromQuickAccessWithKeyword(data);
+            }
+
+            return !this.IsInQuickAccess(data);
+        }
+
+        /// <summary>
+        /// This method clears the recent files.
+        /// </summary>
+        public void EmptyRecentFiles()
+        {
+            SHAddToRecentDocs(ShellAddToRecentDocsFlags.SHARD_PIDL, null);
+        }
+
+        /// <summary>
+        /// This method clears the frequent folders.
+        /// </summary>
+        public void EmptyFrequentFolders()
+        {
+            var CurrentFrequentFolders = this.GetFrequentFolders();
+
+            foreach(var item in CurrentFrequentFolders)
+            {
+                this.RemoveFromQuickAccessWithFullPath(item.Key);
+            }
         }
 
         /// <summary>
         /// This method clears the quick access.
         /// </summary>
-        public void ClearRecent()
+        public void EmptyQuickAccess()
         {
-            SHAddToRecentDocs(ShellAddToRecentDocsFlags.SHARD_PIDL, null);
+            EmptyRecentFiles();
+
+            EmptyFrequentFolders();
         }
 
         /// <summary>
