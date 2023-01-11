@@ -244,38 +244,120 @@ namespace QuickAccessTests
         //}
 
         [TestMethod]
-        public void IsShowQuickAccess_WithGivenKey()
+        public void IsAdminPrivilege_DefaultFalse()
+        {
+            QuickAccessHandler handler = new QuickAccessHandler();
+
+            var isAdmin = handler.IsAdminPrivilege();
+
+            Assert.IsFalse(isAdmin, "Current user is admin?");
+        }
+
+        [TestMethod]
+        public void GetQuickAccessRegistryKey_WithGivenKeyname()
         {
             QuickAccessHandler handler = new QuickAccessHandler();
 
             RegistryKey hklm = Registry.CurrentUser;
             RegistryKey hkExplorer = hklm.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer");
 
-            if (!hkExplorer.GetValueNames().Contains("ShowFrequent"))
-            {
-                hkExplorer = hklm.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer");
-                hkExplorer.SetValue("ShowFrequent", 1, RegistryValueKind.DWord);
-            }
+            var frequentKey = handler.GetQuickAccessRegistryKey("ShowFrequent");
             var currentFrequentKey = (int)hkExplorer.GetValue("ShowFrequent");
-            handler.UpdateShowQuickAccess(1, currentFrequentKey > 0 ? false : true);
-            bool isUpdateShowFrequent = handler.IsShowQuickAccess(1);
 
-            Assert.AreEqual(isUpdateShowFrequent, currentFrequentKey > 0 ? false : true, "Failed to update frequent folder show status");
+            Assert.AreEqual(frequentKey, currentFrequentKey, "Registry Key 'ShowFrequent' doesn't match");
 
-            handler.UpdateShowQuickAccess(1, !isUpdateShowFrequent);
-
-            if (!hkExplorer.GetValueNames().Contains("ShowFrequent"))
-            {
-                hkExplorer = hklm.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer");
-                hkExplorer.SetValue("ShowRecent", 1, RegistryValueKind.DWord);
-            }
+            var recentKey = handler.GetQuickAccessRegistryKey("ShowRecent");
             var currentRecentKey = (int)hkExplorer.GetValue("ShowRecent");
-            handler.UpdateShowQuickAccess(2, currentFrequentKey > 0 ? false : true);
-            bool isUpdateShowRecent = handler.IsShowQuickAccess(2);
 
-            Assert.AreEqual(isUpdateShowRecent, currentRecentKey > 0 ? false : true, "Failed to update recent file show status");
+            Assert.AreEqual(recentKey, currentRecentKey, "Registry Key 'ShowRecent' doesn't match");
 
-            handler.UpdateShowQuickAccess(2, !isUpdateShowRecent);
+            hklm = Registry.LocalMachine;
+            hkExplorer = hklm.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer");
+
+            var hubModeKey = handler.GetQuickAccessRegistryKey("HubMode");
+            int currentHubModeKey;
+
+            if (!hkExplorer.GetValueNames().Contains("HubMode"))
+            {
+                currentHubModeKey = -1;
+            }
+            else
+            {
+                currentHubModeKey = (int)hkExplorer.GetValue("HubMode");
+            }
+
+            Assert.AreEqual(hubModeKey, currentHubModeKey, "Registry Key 'HubMode' doesn't match");
+        }
+
+        [TestMethod]
+        public void IsShowQuickAccess_WithGivenAccessType()
+        {
+            QuickAccessHandler handler = new QuickAccessHandler();
+
+            int ShowFrequentValue = handler.GetQuickAccessRegistryKey("ShowFrequent");
+            int ShowRecentValue = handler.GetQuickAccessRegistryKey("ShowRecent");
+            int HubModeValue = handler.GetQuickAccessRegistryKey("HubMode");
+
+            var isShowAll = handler.IsShowQuickAccess(0);
+            var currentIsShowAll = ((ShowFrequentValue == 0) || (ShowRecentValue == 0) || (HubModeValue == 1)) ? false : true;
+
+            Assert.AreEqual(isShowAll, currentIsShowAll, "Not showing all quick access properly");
+
+            var isShowFrequent = handler.IsShowQuickAccess(1);
+            var currentIsShowFrequent = ShowFrequentValue > 0 ? true : false;
+            if (ShowFrequentValue == -1) currentIsShowFrequent = true;
+
+            Assert.AreEqual(isShowFrequent, currentIsShowFrequent, "Not showing frequent folders properly");
+
+            var isShowRecent = handler.IsShowQuickAccess(2);
+            var currentIsShowRecent = ShowRecentValue > 0 ? true : false;
+            if (ShowRecentValue == -1) currentIsShowRecent = true;
+
+            Assert.AreEqual(isShowRecent, currentIsShowRecent, "Not showing recent files properly");
+
+            var isShowSideMenuQuickAccess = handler.IsShowQuickAccess(3);
+            var currentIsShowSideMenuQuickAccess = HubModeValue > 0 ? false : true;
+            if (HubModeValue == -1) currentIsShowSideMenuQuickAccess = true;
+
+            Assert.AreEqual(isShowSideMenuQuickAccess, currentIsShowSideMenuQuickAccess, "Not showing side menu quick access properly");
+        }
+
+        [TestMethod]
+        public void UpdateShowQuickAccess_WithGivenAccessType()
+        {
+            QuickAccessHandler handler = new QuickAccessHandler();
+
+            if (handler.IsAdminPrivilege())
+            {
+                var isShow = handler.IsShowQuickAccess(0);
+                handler.UpdateShowQuickAccess(0, !isShow);
+
+                bool currentIsShow = handler.IsShowQuickAccess(0);
+
+                Assert.AreEqual(isShow, !currentIsShow, "Failed to show/hide all quick access");
+
+                handler.UpdateShowQuickAccess(0, isShow);
+            }
+            else
+            {
+                var isShowFrequent = handler.IsShowQuickAccess(0);
+                handler.UpdateShowQuickAccess(0, !isShowFrequent);
+
+                bool currentIsShowFrequent = handler.IsShowQuickAccess(0);
+
+                Assert.AreEqual(isShowFrequent, !currentIsShowFrequent, "Failed to show/hide frequent folders");
+
+                handler.UpdateShowQuickAccess(0, isShowFrequent);
+
+                var isShowRecent = handler.IsShowQuickAccess(0);
+                handler.UpdateShowQuickAccess(0, !isShowRecent);
+
+                bool currentIsShowRecent = handler.IsShowQuickAccess(0);
+
+                Assert.AreEqual(isShowRecent, !currentIsShowRecent, "Failed to show/hide recent files");
+
+                handler.UpdateShowQuickAccess(0, isShowRecent);
+            }
         }
     }
 }

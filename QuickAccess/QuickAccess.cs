@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Principal;
 using Microsoft.Win32;
 using Shell32;
 
@@ -633,11 +634,11 @@ namespace QuickAccess
         public bool AddToQuickAccess(string path)
         {
             if (!IsValidPath(path)) return false;
-            if (IsInQuickAccess(path)) return true;
+            if (IsPathInQuickAccess(path)) return true;
 
             SHAddToRecentDocs(ShellAddToRecentDocsFlags.SHARD_PATHW, path);
 
-            return IsInQuickAccess(path);
+            return IsPathInQuickAccess(path);
         }
 
         /// <summary>
@@ -805,7 +806,8 @@ namespace QuickAccess
             if (this.IsValidPath(data))
             {
                 this.RemoveFromQuickAccessWithFullPath(data);
-            } else
+            } 
+            else
             {
                 this.RemoveFromQuickAccessWithKeyword(data);
             }
@@ -845,15 +847,39 @@ namespace QuickAccess
         }
 
         /// <summary>
+        /// This method checks whether current user has system administrator privilege.
+        /// </summary>
+        /// <returns>
+        /// True if current user has system administrator privilege, else false.
+        /// </returns>
+        public bool IsAdminPrivilege()
+        {
+            using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
+            {
+                WindowsPrincipal principal = new WindowsPrincipal(identity);
+                return principal.IsInRole(WindowsBuiltInRole.Administrator);
+            }
+        }
+
+        /// <summary>
         /// This method updates the registry key value about quick access.
+        /// If keyName is 'HubMode', should check admin privilege first.
         /// </summary>
         /// (<paramref name="keyName"/>,<paramref name="keyValue"/>).
         /// <param><c>keyName</c> is the quick access registry key name.</param>
         /// <param><c>keyValue</c> is new value about given registry key.</param>
         private void UpdateQuickAccessRegistryKey(string keyName, bool keyValue)
         {
-            RegistryKey hklm = Registry.CurrentUser;
+            if (keyName == "HubMode" && !IsAdminPrivilege()) return;
+
+            RegistryKey hklm = (keyName == "HubMode") ? Registry.LocalMachine : Registry.CurrentUser;
             RegistryKey hkExplorer = hklm.OpenSubKey(this.QuickAccessRegistryKeyPath, true);
+
+            if (keyName == "HubMode")
+            {
+                hkExplorer.SetValue(keyName, keyValue ? 0 : 1, RegistryValueKind.DWord);
+                return;
+            }
 
             hkExplorer.SetValue(keyName, keyValue ? 1 : 0, RegistryValueKind.DWord);
         }
@@ -863,38 +889,65 @@ namespace QuickAccess
         /// </summary>
         /// (<paramref name="keyName"/>).
         /// <returns>
-        /// True if the given registry key's value is not zero, else false.
+        /// The given registry key's value, -1 for no such key.
         /// </returns>
         /// <param><c>keyName</c> is the quick access registry key name.</param>
-        private bool GetQuickAccessRegistryKey(string keyName)
+        public int GetQuickAccessRegistryKey(string keyName)
         {
-            RegistryKey hklm = Registry.CurrentUser;
+            /// In a x86 machine or program, key 'HubMode' won't be about to get, which means it will always return -1.
+            /// https://stackoverflow.com/questions/13324920/regedit-shows-keys-that-are-not-listed-using-getsubkeynames
+            RegistryKey hklm = (keyName == "HubMode") ? Registry.LocalMachine : Registry.CurrentUser;
             RegistryKey hkExplorer = hklm.OpenSubKey(this.QuickAccessRegistryKeyPath);
+
+            if (!hkExplorer.GetValueNames().Contains(keyName))
+            {
+                return -1;
+            }
 
             var currentValue = (int)hkExplorer.GetValue(keyName);
 
-            return currentValue > 0 ? true : false;
+            return currentValue;
         }
 
         /// <summary>
         /// This method checks whether show frequent folders or recent files.
         /// </summary>
         /// (<paramref name="accessType"/>).
-        /// <param><c>keyName</c> is the quick access type. 1 for frequent folder, 2 for recent files, other returns false.</param>
+        /// <param><c>keyName</c> is the quick access type. 0 for all type, 1 for frequent folder, 2 for recent files, 3 for side menu quick access, other returns false.</param>
         public bool IsShowQuickAccess(uint accessType)
         {
             bool isShow = false;
-            if (accessType == 1)
+            int registrykeyValue;
+            string[] registryKey = new string[3] { "ShowFrequent", "ShowRecent", "HubMode" };
+
+            if (accessType == 0)
             {
-                isShow = GetQuickAccessRegistryKey("ShowFrequent");
+                int ShowFrequentValue = GetQuickAccessRegistryKey("ShowFrequent");
+                int ShowRecentValue = GetQuickAccessRegistryKey("ShowRecent");
+                int HubModeValue = GetQuickAccessRegistryKey("HubMode");
+
+                isShow = ((ShowFrequentValue == 0) || (ShowRecentValue == 0) || (HubModeValue == 1)) ? false : true;
             }
-            else if (accessType == 2)
+            else if (accessType > 0 && accessType <= 3)
             {
-                isShow = GetQuickAccessRegistryKey("ShowRecent");
+                registrykeyValue = GetQuickAccessRegistryKey(registryKey[accessType - 1]);
+
+                // If no such key about quick access, system will show quick access by default.
+                if (registrykeyValue == -1) return true;
+
+                // For key 'HubMode' about side menu quick access, 0 for showing, 1 for hiding
+                if (accessType == 3)
+                {
+                    isShow = registrykeyValue > 0 ? false : true;
+                }
+                else
+                {
+                    isShow = registrykeyValue > 0 ? true : false;
+                }
             }
             else
             {
-                return false;
+                isShow = false;
             }
 
             return isShow;
@@ -904,24 +957,33 @@ namespace QuickAccess
         /// This method updates whether show frequent folders or recent files and will auto refresh file explorer if set language properly.
         /// </summary>
         /// (<paramref name="accessType"/>, <paramref name="isShow"/>).
-        /// <param><c>keyName</c> is the quick access type. 0 for both, 1 for frequent folder, 2 for recent files, other returns false.</param>
+        /// <param><c>keyName</c> is the quick access type. 0 for all type, 1 for frequent folder, 2 for recent files, 3 for side menu quick access, other returns false.</param>
         /// <param><c>isShow</c> whether show.</param>
         public void UpdateShowQuickAccess(uint accessType, bool isShow)
         {
-            if (accessType == 0)
+            switch(accessType)
             {
-                UpdateQuickAccessRegistryKey("ShowFrequent", isShow);
-                UpdateQuickAccessRegistryKey("ShowRecent", isShow);
-            } else if (accessType == 1)
-            {
-                UpdateQuickAccessRegistryKey("ShowFrequent", isShow);
-            } else if (accessType == 2)
-            {
-                UpdateQuickAccessRegistryKey("ShowRecent", isShow);
-            } else
-            {
-                return;
-            }
+                case 0:
+                    UpdateQuickAccessRegistryKey("ShowFrequent", isShow);
+                    UpdateQuickAccessRegistryKey("ShowRecent", isShow);
+                    UpdateQuickAccessRegistryKey("HubMode", isShow);
+                    break;
+
+                case 1:
+                    UpdateQuickAccessRegistryKey("ShowFrequent", isShow);
+                    break;
+
+                case 2:
+                    UpdateQuickAccessRegistryKey("ShowRecent", isShow);
+                    break;
+
+                case 3:
+                    UpdateQuickAccessRegistryKey("HubMode", isShow);
+                    break;
+
+                default:
+                    break;
+            }    
 
             this.RefreshFileExplorer();
         }
