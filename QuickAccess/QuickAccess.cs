@@ -5,6 +5,8 @@ using System.Text;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
+using System.Management.Automation;
+using System.Management.Automation.Runspaces;
 using Microsoft.Win32;
 using Shell32;
 
@@ -345,7 +347,7 @@ namespace QuickAccess
         /// <param><c>menuName</c> is the given menuName string.</param>
         public void AddQuickAccessMenuName(string languageCode, string menuName)
         {
-            if (this.IsSupportedQuickAccessLanguage(languageCode) || this.IsInQuickAccessMenuName(menuName)) return;
+            if (IsSupportedQuickAccessLanguage(languageCode) || IsInQuickAccessMenuName(menuName)) return;
 
             this.QuickAccessMenuName.Add(languageCode, menuName);  
         }
@@ -400,7 +402,7 @@ namespace QuickAccess
         /// <param><c>menuName</c> is the given menuName string.</param>
         public void AddFileExplorerMenuName(string languageCode, string menuName)
         {
-            if (this.IsSupportedFileExplorerLanguage(languageCode) || this.IsInFileExplorerMenuName(menuName)) return;
+            if (IsSupportedFileExplorerLanguage(languageCode) || IsInFileExplorerMenuName(menuName)) return;
 
             this.FileExplorerMenuName.Add(languageCode, menuName);
         }
@@ -463,45 +465,80 @@ namespace QuickAccess
 
             foreach (var item in quickAccess.Items())
             {
-                var grouping = (int)item.ExtendedProperty("System.Home.Grouping");
-                groupList.Add(grouping);
-                switch (grouping)
+                if (File.Exists(item.path))
                 {
-                    case (int)QuickAccessType.FrequentFolder:
-                        if (this.frequentFolders.ContainsKey(item.path))
-                        {
-                            this.frequentFolders[item.path] = item.name;
-                        }
-                        else
-                        {
-                            this.frequentFolders.Add(item.path, item.name);
-                        }
-                        break;
-
-                    case (int)QuickAccessType.RecentFile:
-                        // File name will include its type, like myText.txt
-                        if (this.recentFiles.ContainsKey(item.path))
-                        {
-                            this.recentFiles[item.path] = item.name;
-                        }
-                        else
-                        {
-                            this.recentFiles.Add(item.path, item.name);
-                        }
-                        break;
-
-                    default:
-                        var fileGrouping = grouping;
-                        if (this.unspecificContent.ContainsKey(item.path))
-                        {
-                            this.unspecificContent[item.path] = item.name;
-                        }
-                        else
-                        {
-                            this.unspecificContent.Add(item.path, item.name);
-                        }
-                        break;
+                    if (this.recentFiles.ContainsKey(item.path))
+                    {
+                        this.recentFiles[item.path] = item.name;
+                    }
+                    else
+                    {
+                        this.recentFiles.Add(item.path, item.name);
+                    }
                 }
+                else if (Directory.Exists(item.path))
+                {
+                    if (this.frequentFolders.ContainsKey(item.path))
+                    {
+                        this.frequentFolders[item.path] = item.name;
+                    }
+                    else
+                    {
+                        this.frequentFolders.Add(item.path, item.name);
+                    }
+                }
+                else
+                {
+                    if (this.unspecificContent.ContainsKey(item.path))
+                    {
+                        this.unspecificContent[item.path] = item.name;
+                    }
+                    else
+                    {
+                        this.unspecificContent.Add(item.path, item.name);
+                    }
+                }
+
+                /// Group of file seems to change from time to time.
+                //var grouping = (int)item.ExtendedProperty("System.Home.Grouping");
+                //groupList.Add(grouping);
+                //switch (grouping)
+                //{
+                //    case (int)QuickAccessType.FrequentFolder:
+                //        if (this.frequentFolders.ContainsKey(item.path))
+                //        {
+                //            this.frequentFolders[item.path] = item.name;
+                //        }
+                //        else
+                //        {
+                //            this.frequentFolders.Add(item.path, item.name);
+                //        }
+                //        break;
+
+                //    case (int)QuickAccessType.RecentFile:
+                //        // File name will include its type, like myText.txt
+                //        if (this.recentFiles.ContainsKey(item.path))
+                //        {
+                //            this.recentFiles[item.path] = item.name;
+                //        }
+                //        else
+                //        {
+                //            this.recentFiles.Add(item.path, item.name);
+                //        }
+                //        break;
+
+                //    default:
+                //        var fileGrouping = grouping;
+                //        if (this.unspecificContent.ContainsKey(item.path))
+                //        {
+                //            this.unspecificContent[item.path] = item.name;
+                //        }
+                //        else
+                //        {
+                //            this.unspecificContent.Add(item.path, item.name);
+                //        }
+                //        break;
+                //}
             }
         }
 
@@ -513,7 +550,7 @@ namespace QuickAccess
         /// </returns>
         public Dictionary<string, string> GetQuickAccessDict()
         {
-            this.GetQuickAccess();
+            GetQuickAccess();
 
             List<Dictionary<string, string>> quickAccessList = new List<Dictionary<string, string>> { this.frequentFolders, this.recentFiles, this.unspecificContent };
             Dictionary<string, string> quickAccessDict = new Dictionary<string, string>();
@@ -537,7 +574,7 @@ namespace QuickAccess
         /// </returns>
         public Dictionary<string, string> GetFrequentFolders()
         {
-            this.GetQuickAccess();
+            GetQuickAccess();
 
             return this.frequentFolders;
         }
@@ -550,7 +587,7 @@ namespace QuickAccess
         /// </returns>
         public Dictionary<string, string> GetRecentFiles()
         {
-            this.GetQuickAccess();
+            GetQuickAccess();
 
             return this.recentFiles;
         }
@@ -565,7 +602,7 @@ namespace QuickAccess
         /// <param><c>path</c> is the given path string,</param>
         private bool IsPathInQuickAccess(string path)
         {
-            this.GetQuickAccess();
+            GetQuickAccess();
 
             if (IsValidPath(path))
             {
@@ -593,7 +630,7 @@ namespace QuickAccess
         /// <param><c>keyword</c> is the given keyword string.</param>
         private bool IsKeywordInQuickAccess(string keyword)
         {
-            this.GetQuickAccess();
+            GetQuickAccess();
 
             var qucikAccessList = new List<Dictionary<string, string>> { this.frequentFolders, this.recentFiles, this.unspecificContent };
 
@@ -624,6 +661,35 @@ namespace QuickAccess
         }
 
         /// <summary>
+        /// This method pins folder to quick access with runspace factory.
+        /// Using try catch to adapt tauri app.
+        /// https://stackoverflow.com/questions/36739317/programatically-pin-unpin-the-folder-from-quick-access-menu-in-windows-10
+        /// </summary>
+        /// (<paramref name="path"/>).
+        /// <param><c>path</c> is the given folder path.</param>
+        private void PinFolderToQuickAccess(string path)
+        {
+            try
+            {
+                using (var runspace = RunspaceFactory.CreateRunspace())
+                {
+                    runspace.Open();
+
+                    var ps = PowerShell.Create();
+                    var shellApplication =
+                        ps.AddCommand("New-Object").AddParameter("ComObject", "shell.application").Invoke();
+
+                    dynamic nameSpace = shellApplication.FirstOrDefault()?.Methods["NameSpace"].Invoke(path);
+                    nameSpace?.Self.InvokeVerb("pintohome");
+                }
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine("Err: {0}", e);
+            }
+        }
+
+        /// <summary>
         /// This method adds given path to quick access.
         /// </summary>
         /// (<paramref name="path"/>).
@@ -636,9 +702,44 @@ namespace QuickAccess
             if (!IsValidPath(path)) return false;
             if (IsPathInQuickAccess(path)) return true;
 
-            SHAddToRecentDocs(ShellAddToRecentDocsFlags.SHARD_PATHW, path);
-
+            if (File.Exists(path))
+            {
+                SHAddToRecentDocs(ShellAddToRecentDocsFlags.SHARD_PATHW, path);
+            }
+            else if (Directory.Exists(path))
+            {
+                PinFolderToQuickAccess(path);
+            }
+            
             return IsPathInQuickAccess(path);
+        }
+
+        /// <summary>
+        /// This method unpins folder from quick access with runspace factory.
+        /// Using try catch to adapt tauri app.
+        /// https://stackoverflow.com/questions/36739317/programatically-pin-unpin-the-folder-from-quick-access-menu-in-windows-10
+        /// </summary>
+        /// (<paramref name="path"/>).
+        /// <param><c>path</c> is the given folder path.</param>
+        private void UnpinFolderFromQuickAccess(string path)
+        {
+            try
+            {
+                using (var runspace = RunspaceFactory.CreateRunspace())
+                {
+                    runspace.Open();
+                    var ps = PowerShell.Create();
+                    var removeScript =
+                        $"((New-Object -ComObject shell.application).Namespace(\"shell:::{{679f85cb-0220-4080-b29b-5540cc05aab6}}\").Items() | Where-Object {{ $_.Path -EQ \"{path}\" }}).InvokeVerb(\"unpinfromhome\")";
+
+                    ps.AddScript(removeScript);
+                    ps.Invoke();
+                }
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine("Err: {0}", e);
+            }
         }
 
         /// <summary>
@@ -652,6 +753,13 @@ namespace QuickAccess
         private bool RemoveFromQuickAccessWithFullPath(string path)
         {
             if (!IsValidPath(path)) return false;
+
+            if (Directory.Exists(path))
+            {
+                UnpinFolderFromQuickAccess(path);
+
+                if (!IsPathInQuickAccess(path)) return true;
+            }
 
             // declare variables
             HRESULT hr = HRESULT.E_FAIL;
@@ -767,7 +875,7 @@ namespace QuickAccess
                 }
             }
 
-            return !this.IsPathInQuickAccess(path);
+            return !IsPathInQuickAccess(path);
         }
 
         /// <summary>
@@ -780,17 +888,17 @@ namespace QuickAccess
         /// <param><c>keyword</c> is the given keyword string.</param>
         private bool RemoveFromQuickAccessWithKeyword(string keyword)
         {
-            var CurrentQuickAccessDict = this.GetQuickAccessDict();
+            var CurrentQuickAccessDict = GetQuickAccessDict();
 
             foreach(var item in CurrentQuickAccessDict)
             {
                 if (item.Key.Contains(keyword))
                 {
-                    this.RemoveFromQuickAccessWithFullPath(item.Key);
+                    RemoveFromQuickAccessWithFullPath(item.Key);
                 }
             }
 
-            return !this.IsKeywordInQuickAccess(keyword);
+            return !IsKeywordInQuickAccess(keyword);
         }
 
         /// <summary>
@@ -803,16 +911,16 @@ namespace QuickAccess
         /// <param><c>data</c> is the given data string.</param>
         public bool RemoveFromQuickAccess(string data)
         {
-            if (this.IsValidPath(data))
+            if (IsValidPath(data))
             {
-                this.RemoveFromQuickAccessWithFullPath(data);
+                RemoveFromQuickAccessWithFullPath(data);
             } 
             else
             {
-                this.RemoveFromQuickAccessWithKeyword(data);
+                RemoveFromQuickAccessWithKeyword(data);
             }
 
-            return !this.IsInQuickAccess(data);
+            return !IsInQuickAccess(data);
         }
 
         /// <summary>
@@ -832,7 +940,7 @@ namespace QuickAccess
 
             foreach(var item in CurrentFrequentFolders)
             {
-                this.RemoveFromQuickAccessWithFullPath(item.Key);
+                RemoveFromQuickAccessWithFullPath(item.Key);
             }
         }
 
@@ -985,7 +1093,7 @@ namespace QuickAccess
                     break;
             }    
 
-            this.RefreshFileExplorer();
+            RefreshFileExplorer();
         }
     }
 }
