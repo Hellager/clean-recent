@@ -125,9 +125,8 @@ namespace QuickAccessShell
         {
             Console.OutputEncoding = Encoding.UTF8;
 
-            var parserResult = new Parser(with => with.HelpWriter = null).ParseArguments<ListOptions, AddOptions, RemoveOptions, ShowOptions, CheckOptions, CleanOptions>(args);
-
-            parserResult.MapResult(
+            Parser.Default.ParseArguments<ListOptions, AddOptions, RemoveOptions, ShowOptions, CheckOptions, CleanOptions>(args)
+                .MapResult(
                     (ListOptions _option) => HandleListOptions(_option),
                     (AddOptions _option) => HandleAddOptions(args, _option),
                     (RemoveOptions _option) => HandleRemoveOptions(args, _option),
@@ -135,23 +134,23 @@ namespace QuickAccessShell
                     (CheckOptions _option) => HandleCheckOptions(args, _option),
                     (CleanOptions _option) => HandleCleanOptions(_option),
                     //(TestOptions _option) => HandleTestOptions(_option),
-                    errs => DisplayHelp(parserResult)
+                    error => -1
                 );
         }
 
-        static int DisplayHelp<T>(ParserResult<T> result)
-        {
-            var helpText = HelpText.AutoBuild(result, h =>
-            {
-                h.AdditionalNewLineAfterOption = false;
-                h.Heading = "QuickAccessShell 1.0";
-                h.Copyright = "Copyright (c) 2023 Steins";
-                return HelpText.DefaultParsingErrorsHandler(result, h);
-            }, e => e);
-            Console.WriteLine(helpText);
+        //static int DisplayHelp<T>(ParserResult<T> result)
+        //{
+        //    var helpText = HelpText.AutoBuild(result, h =>
+        //    {
+        //        h.AdditionalNewLineAfterOption = false;
+        //        h.Heading = "QuickAccessShell 1.0";
+        //        h.Copyright = "Copyright (c) 2023 Steins";
+        //        return HelpText.DefaultParsingErrorsHandler(result, h);
+        //    }, e => e);
+        //    Console.WriteLine(helpText);
 
-            return -1;
-        }
+        //    return -1;
+        //}
 
         private static string BuildOutputData(ArrayList input, string type, ArrayList debug)
         {
