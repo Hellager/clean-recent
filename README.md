@@ -2,7 +2,7 @@
 
 QuickAccessShell is a c# console application based on .net framework for handling windows quick access.
 
-This is customized for tauri sidecar with JSON output.
+This is customized for Tauri sidecar with JSON output.
 
 ## Installation
 
@@ -106,7 +106,7 @@ ERROR(S):
 
 ## Contributing
 
-Pull requests are welcome. Since this console application is customized for tauri sidecar, if you want to change the ouput, you'd better build your own console application.
+Pull requests are welcome. Since this console application is customized for Tauri sidecar, if you want to change the ouput, you'd better build your own console application.
 
 
 
