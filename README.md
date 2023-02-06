@@ -43,15 +43,15 @@ Function `UpdateShowQuickAccess` relies on properly setting `FileExplorerMenuNam
 
 Language `zh-CN, zh-TW, en-US, fr-FR, ru-RU` is supported by default.
 
-If your system language is not supported by default, you should add first using `AddQuickAccessMenuName` or `AddFileExplorerMenuName`.
+If your system language is not supported by default, you should add first, using function `AddQuickAccessMenuName` or `AddFileExplorerMenuName`.
 
-You can get those menu names through [Microsoft: Find and open File Explorer](https://support.microsoft.com/en-us/windows/find-and-open-file-explorer-ef370130-1cca-9dc5-e0df-2f7416fe1cb1) and [Microsoft: Help in File Explorer](https://support.microsoft.com/en-us/windows/help-in-file-explorer-a2d33543-5242-788d-8994-b0be10ae5bca) by changing the url language code.
+You can get the alias of `Quick access` and `File Explorer` through [Microsoft: Find and open File Explorer](https://support.microsoft.com/en-us/windows/find-and-open-file-explorer-ef370130-1cca-9dc5-e0df-2f7416fe1cb1) and [Microsoft: Help in File Explorer](https://support.microsoft.com/en-us/windows/help-in-file-explorer-a2d33543-5242-788d-8994-b0be10ae5bca) by changing the url language code.
 
 ### ℹ️ `UpdateShowQuickAccess` is not the same in `Folder Options` !
 
-Disable `Show recently used files in Quick Access` or `Show frequently used folders in Quick acess` in Folder Options will also clear your recently used files or frequently used folders.
+Disable `Show recently used files in Quick Access` or `Show frequently used folders in Quick acess` in Folder Options will also empty your recently used files or frequently used folders by default.
 
-Function `UpdateShowQuickAccess` won't clear any of your quick access items.
+However function `UpdateShowQuickAccess` will not remove any of your quick access items, just show or hide.
 
 ### ℹ️ Show/hide `Quick access` in file explorer requires administrator privileges!
 
@@ -65,7 +65,7 @@ Normally in `Quick access`, we will see `Frequent folders` and `Recent files` ar
 
 After changing the `Quick access` show status, you may see the `Frequent folders` and `Recent files` are mixed with each other without any separation, usually back to normal after restart the system.
 
-Haven't figured out why this happens, if you know about it, please help to fix it.
+Haven't figured out why this happens. But if anyone know why, please let me know and i will try my best to fix it.
 
 ### ⚠️ `AddToQuickAccess` is not working properly!
 
@@ -73,5 +73,5 @@ You can run the tests to check, it has been temporarily commented out.
 
 I have asked about it but no progress for now: [function SHAddToRecentDocs seems not working on win10 for folders](https://learn.microsoft.com/en-us/answers/questions/1115223/function-shaddtorecentdocs-seems-not-working-on-wi.html).
 
-If you know how to solve it or have any good ideas, please let me know to make it working.
+If anyone know how to solve it or have any good ideas, please let me know and i will try my best to make it work.
 
