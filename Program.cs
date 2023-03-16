@@ -90,8 +90,8 @@ namespace QuickAccessShell
             public bool IsCheckSupportedLanguage { get; set; }
         }
 
-        [Verb("clean", HelpText = "Empty quick access.")]
-        class CleanOptions
+        [Verb("empty", HelpText = "Empty quick access.")]
+        class EmptyOptions
         {
             [Option('a', "all", Required = false, HelpText = "Empty all quick access items.")]
             public bool IsEmptyAll { get; set; }
@@ -125,14 +125,14 @@ namespace QuickAccessShell
         {
             Console.OutputEncoding = Encoding.UTF8;
 
-            Parser.Default.ParseArguments<ListOptions, AddOptions, RemoveOptions, ShowOptions, CheckOptions, CleanOptions>(args)
+            Parser.Default.ParseArguments<ListOptions, AddOptions, RemoveOptions, ShowOptions, CheckOptions, EmptyOptions>(args)
                 .MapResult(
                     (ListOptions _option) => HandleListOptions(_option),
                     (AddOptions _option) => HandleAddOptions(args, _option),
                     (RemoveOptions _option) => HandleRemoveOptions(args, _option),
                     (ShowOptions _option) => HandleShowOptions(_option),
                     (CheckOptions _option) => HandleCheckOptions(args, _option),
-                    (CleanOptions _option) => HandleCleanOptions(_option),
+                    (EmptyOptions _option) => HandleEmptyOptions(_option),
                     //(TestOptions _option) => HandleTestOptions(_option),
                     error => -1
                 );
@@ -339,7 +339,7 @@ namespace QuickAccessShell
             return 0;
         }
 
-        private static int HandleCleanOptions(CleanOptions options)
+        private static int HandleEmptyOptions(EmptyOptions options)
         {
             if (options.IsEmptyAll)
             {

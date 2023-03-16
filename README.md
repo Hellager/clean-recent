@@ -6,7 +6,19 @@ This is customized for Tauri sidecar with JSON output.
 
 ## Installation
 
-Download the resource file from repo release or download the project then build it with Visual Studio.
+### 1. From release page
+
+Check [release page](https://github.com/Hellager/clean-recent/releases) and download `QuickAccessShell.exe`.
+
+### 2. Build it yourself
+
+```c
+$ git clone https://github.com/Hellager/clean-recent.git
+$ git fetch origin shell
+$ git checkout -b shell origin/shell
+```
+
+Open project in Visual Studio and build solution.
 
 ## Usage
 
@@ -25,7 +37,7 @@ ERROR(S):
   show       Show/Hide quick access related.
   check      Check whether in quick access or show quick access or supported
              language
-  clean      Empty quick access.
+  empty      Empty quick access.
   help       Display more information on a specific command.
   version    Display version information.
 ```
@@ -92,7 +104,7 @@ ERROR(S):
   -i, --internationalization      Check whether supported language
 ```
 
-### clean
+### empty
 
 ```shell
   -a, --all                 Empty all quick access items.
