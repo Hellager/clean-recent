@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
+using System.Globalization;
 using Newtonsoft.Json;
 using CommandLine;
 using CommandLine.Text;
@@ -12,7 +13,7 @@ namespace QuickAccessShell
 {
     internal class Program
     {
-        [Verb("list", HelpText = "List current quick acess or supported language.")]
+        [Verb("list", HelpText = "List current quick acess or supported languages.")]
         class ListOptions
         {
             [Option('a', "all", Required = false, HelpText = "List both recent files and frequent folders.")]
@@ -24,7 +25,7 @@ namespace QuickAccessShell
             [Option('f', "frequent-folders", Required = false, HelpText = "List frequent folders.")]
             public bool IsListFrequentFolders { get; set; }
 
-            [Option('i', "internationalization", Required = false, HelpText = "List supported language")]
+            [Option('i', "internationalization", Required = false, HelpText = "List supported languages.")]
             public bool IsListSupportedLanguage { get; set; }
         }
 
@@ -41,9 +42,6 @@ namespace QuickAccessShell
         {
             [Value(0, HelpText = "Targets to remove.")]
             public IEnumerable<string> RemoveItems { get; set; }
-
-            [Option('i', "internationalization", Required = false, HelpText = "To support unsupported language.")]
-            public string I18nQuickAccess { get; set; }
         }
 
         [Verb("show", HelpText = "Show/Hide quick access related.")]
@@ -61,11 +59,11 @@ namespace QuickAccessShell
             [Option('f', "frequent-folders", Required = false, HelpText = "Show/Hide frequent folders.")]
             public bool IsShowFrequentFolders { get; set; }
 
-            [Option('s', "side-menu-quick-access", Required = false, HelpText = "Show/Hide side menu quick access.")]
-            public bool IsShowSideMenuQuickAccess { get; set; }
+            [Option('m', "quick-access-menu", Required = false, HelpText = "Show/Hide quick access menu.")]
+            public bool IsShowQuickAccessMenu { get; set; }
         }
 
-        [Verb("check", HelpText = "Check whether in quick access or show quick access or supported language")]
+        [Verb("check", HelpText = "Check whether in quick access or show quick access or supported language.")]
         class CheckOptions
         {
             [Value(0, HelpText = "Targets to check.")]
@@ -83,10 +81,10 @@ namespace QuickAccessShell
             [Option('f', "frequent-folders", Required = false, HelpText = "Check whether show frequent folders.")]
             public bool IsShowFrequentFolders { get; set; }
 
-            [Option('s', "side-menu-quick-access", Required = false, HelpText = "Show/Hide side menu quick access.")]
-            public bool IsShowSideMenuQuickAccess { get; set; }
+            [Option('m', "quick-access-menu", Required = false, HelpText = "Check whether show quick access menu.")]
+            public bool IsShowQuickAccessMenu { get; set; }
 
-            [Option('i', "internationalization", Required = false, HelpText = "Check whether supported language")]
+            [Option('i', "internationalization", Required = false, HelpText = "Check whether support language")]
             public bool IsCheckSupportedLanguage { get; set; }
         }
 
@@ -125,7 +123,7 @@ namespace QuickAccessShell
         {
             Console.OutputEncoding = Encoding.UTF8;
 
-            Parser.Default.ParseArguments<ListOptions, AddOptions, RemoveOptions, ShowOptions, CheckOptions, EmptyOptions>(args)
+            Parser.Default.ParseArguments<ListOptions, AddOptions, RemoveOptions, ShowOptions, CheckOptions, EmptyOptions/*, TestOptions*/>(args)
                 .MapResult(
                     (ListOptions _option) => HandleListOptions(_option),
                     (AddOptions _option) => HandleAddOptions(args, _option),
@@ -264,12 +262,12 @@ namespace QuickAccessShell
             {
                 accessType = 2;
             }
-            else if (options.IsShowSideMenuQuickAccess)
+            else if (options.IsShowQuickAccessMenu)
             {
                 accessType = 3;
             }
 
-            if (options.IsShowAll || options.IsShowSideMenuQuickAccess)
+            if (options.IsShowAll || options.IsShowQuickAccessMenu)
             {
                 if (!_handler.IsAdminPrivilege())
                 {
@@ -293,7 +291,7 @@ namespace QuickAccessShell
         {
             ArrayList res = new ArrayList { };
 
-            if (!options.IsInQuickAccess && (options.IsShowAll || options.IsShowRecentFiles || options.IsShowFrequentFolders || options.IsShowSideMenuQuickAccess))
+            if (!options.IsInQuickAccess && (options.IsShowAll || options.IsShowRecentFiles || options.IsShowFrequentFolders || options.IsShowQuickAccessMenu))
             {
                 UInt32 accessType = 0;
 
@@ -309,7 +307,7 @@ namespace QuickAccessShell
                 {
                     accessType = 2;
                 }
-                else if (options.IsShowSideMenuQuickAccess)
+                else if (options.IsShowQuickAccessMenu)
                 {
                     accessType = 3;
                 }
@@ -326,9 +324,27 @@ namespace QuickAccessShell
             }
             else if (options.IsCheckSupportedLanguage)
             {
+                var TargetCount = 0;
+
                 foreach (var item in options.Target)
                 {
+                    TargetCount += 1;
                     bool isSupportedLang = _handler.IsSupportedQuickAccessLanguage(item);
+                    res.Add(isSupportedLang);
+                }
+
+                if (TargetCount == 0)
+                {
+                    bool isSupportedLang = false;
+                    CultureInfo ci = CultureInfo.CurrentCulture;
+                    Console.WriteLine("Current Language Info: {0}", ci.Name);
+
+                    ArrayList CurSupportLanguageList = new ArrayList(_handler.GetSupportLanguages());
+                    if (CurSupportLanguageList.Contains(ci.Name))
+                    {
+                        isSupportedLang = true;
+                    }
+
                     res.Add(isSupportedLang);
                 }
             }
@@ -359,11 +375,17 @@ namespace QuickAccessShell
 
         //private static int HandleTestOptions(TestOptions options)
         //{
-        //    var path = @"C:\Intel";
+        //    CultureInfo ci = CultureInfo.CurrentCulture;
+        //    Console.WriteLine("Current Language Info: {0}", ci.Name);
 
-        //    _handler.AddToQuickAccess(path);
-
-        //    _handler.RemoveFromQuickAccess(path);
+        //    ArrayList CurSupportLanguageList = new ArrayList(_handler.GetSupportLanguages());
+        //    if (CurSupportLanguageList.Contains(ci.Name))
+        //    {
+        //        Console.WriteLine("Support cur system lang");
+        //    } else
+        //    {
+        //        Console.WriteLine("Unsupported cur system lang");
+        //    }
 
         //    return 0;
         //}
