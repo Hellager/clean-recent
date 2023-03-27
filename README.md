@@ -36,7 +36,7 @@ ERROR(S):
   remove     Remove items from quick access.
   show       Show/Hide quick access related.
   check      Check whether in quick access or show quick access or supported
-             language
+             language.
   empty      Empty quick access.
   help       Display more information on a specific command.
   version    Display version information.
@@ -55,21 +55,19 @@ ERROR(S):
 
   -f, --frequent-folders        List frequent folders.
 
-  -i, --internationalization    List supported language
+  -i, --internationalization    List supported languages.
 ```
 
 ### add
 
 ```shell
-  value pos. 0    Targets to add.
+  value pos. 0                   Targets to add.
 ```
 
 ### remove
 
 ```shell
   value pos. 0                  Targets to remove.
-  
-  -i, --internationalization    To support unsupported language.
 ```
 
 ### show
@@ -83,7 +81,7 @@ ERROR(S):
 
   -f, --frequent-folders          Show/Hide frequent folders.
 
-  -s, --side-menu-quick-access    Show/Hide side menu quick access.
+  -m, --quick-access-menu         Show/Hide quick access menu.
 ```
 
 ### check
@@ -99,7 +97,7 @@ ERROR(S):
 
   -f, --frequent-folders          Check whether show frequent folders.
 
-  -s, --side-menu-quick-access    Show/Hide side menu quick access.
+  -m, --quick-access-menu         Check whether show quick access menu.
 
   -i, --internationalization      Check whether supported language
 ```
