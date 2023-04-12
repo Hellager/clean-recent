@@ -41,7 +41,7 @@ async function resolvePublish() {
 
   execSync("git add ./package.json");
   execSync("git add ./src-tauri/tauri.conf.json");
-  execSync(`git commit -m "release v${nextVersion}"`);
+  execSync(`git commit -m "v${nextVersion}"`);
   execSync(`git tag -a v${nextVersion} -m "v${nextVersion}"`);
   execSync(`git push`);
   execSync(`git push origin v${nextVersion}`);
