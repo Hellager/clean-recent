@@ -508,7 +508,7 @@ namespace QuickAccess
         }
 
         /// <summary>
-        /// This method gets the quick access items in the form of a dictionary. <item name, item path>
+        /// This method gets the quick access items in the form of a dictionary. <item path, item name>
         /// </summary>
         /// <returns>
         /// The quick access items dictionary combines frequentFolders/recentFiles/unspecificContent.
@@ -532,7 +532,7 @@ namespace QuickAccess
         }
 
         /// <summary>
-        /// This method gets the frequent folders in quick access in the form of a dictionary. <folder name, folder path>
+        /// This method gets the frequent folders in quick access in the form of a dictionary. <folder path, folder name>
         /// </summary>
         /// <returns>
         /// The frequentFolders dictionary.
@@ -545,7 +545,7 @@ namespace QuickAccess
         }
 
         /// <summary>
-        /// This method gets the recent files in quick access in the form of a dictionary. <file name, file path>
+        /// This method gets the recent files in quick access in the form of a dictionary. <file path, file name>
         /// </summary>
         /// <returns>
         /// The recentFiles dictionary.
