@@ -83,12 +83,6 @@ public enum ShowWindowCommands : uint
     SW_MAX = 11
 }
 
-public enum QuickAccessType
-{
-    FrequentFolder = 1,
-    RecentFile
-};
-
 public enum ShellAddToRecentDocsFlags
 {
     SHARD_PIDL = 0x001,
@@ -225,12 +219,12 @@ namespace QuickAccess
         ///// <summary>
         ///// Instance variable <c>QuickAccessType</c> Enumeration of quick access items type: FrequentFolder, RecentFile, Undefined.
         ///// </summary>
-        //public enum QuickAccessType
-        //{
-        //    FrequentFolder = 1,
-        //    Undefined = 2,
-        //    RecentFile = 3
-        //}
+        private enum QuickAccessType
+        {
+            FrequentFolder = 1,
+            RecentFile_Win10 = 2,
+            RecentFile_Win11 = 3,
+        };
 
         [DllImport("Shell32.dll", BestFitMapping = false, ThrowOnUnmappableChar = true)]
         private static extern void SHAddToRecentDocs(ShellAddToRecentDocsFlags flags, [MarshalAs(UnmanagedType.LPWStr)] string file);
@@ -461,84 +455,55 @@ namespace QuickAccess
             var CLSID_HomeFolder = new Guid("679f85cb-0220-4080-b29b-5540cc05aab6");
             var quickAccess = this.quickAccessShell.Namespace("shell:::" + CLSID_HomeFolder.ToString("B"));
 
-            List<int> groupList = new List<int> { };
-
             foreach (var item in quickAccess.Items())
             {
-                if (File.Exists(item.path))
+                var grouping = (int)item.ExtendedProperty("System.Home.Grouping");
+                switch (grouping)
                 {
-                    if (this.recentFiles.ContainsKey(item.path))
-                    {
-                        this.recentFiles[item.path] = item.name;
-                    }
-                    else
-                    {
-                        this.recentFiles.Add(item.path, item.name);
-                    }
-                }
-                else if (Directory.Exists(item.path))
-                {
-                    if (this.frequentFolders.ContainsKey(item.path))
-                    {
-                        this.frequentFolders[item.path] = item.name;
-                    }
-                    else
-                    {
-                        this.frequentFolders.Add(item.path, item.name);
-                    }
-                }
-                else
-                {
-                    if (this.unspecificContent.ContainsKey(item.path))
-                    {
-                        this.unspecificContent[item.path] = item.name;
-                    }
-                    else
-                    {
-                        this.unspecificContent.Add(item.path, item.name);
-                    }
-                }
+                    case (int)QuickAccessType.FrequentFolder:
+                        if (this.frequentFolders.ContainsKey(item.path))
+                        {
+                            this.frequentFolders[item.path] = item.name;
+                        }
+                        else
+                        {
+                            this.frequentFolders.Add(item.path, item.name);
+                        }
+                        break;
 
-                /// Group of file seems to change from time to time.
-                //var grouping = (int)item.ExtendedProperty("System.Home.Grouping");
-                //groupList.Add(grouping);
-                //switch (grouping)
-                //{
-                //    case (int)QuickAccessType.FrequentFolder:
-                //        if (this.frequentFolders.ContainsKey(item.path))
-                //        {
-                //            this.frequentFolders[item.path] = item.name;
-                //        }
-                //        else
-                //        {
-                //            this.frequentFolders.Add(item.path, item.name);
-                //        }
-                //        break;
+                    case (int)QuickAccessType.RecentFile_Win10:
+                        if (this.recentFiles.ContainsKey(item.path))
+                        {
+                            this.recentFiles[item.path] = item.name;
+                        }
+                        else
+                        {
+                            this.recentFiles.Add(item.path, item.name);
+                        }
+                        break;
 
-                //    case (int)QuickAccessType.RecentFile:
-                //        // File name will include its type, like myText.txt
-                //        if (this.recentFiles.ContainsKey(item.path))
-                //        {
-                //            this.recentFiles[item.path] = item.name;
-                //        }
-                //        else
-                //        {
-                //            this.recentFiles.Add(item.path, item.name);
-                //        }
-                //        break;
+                    case (int)QuickAccessType.RecentFile_Win11:
+                        if (this.recentFiles.ContainsKey(item.path))
+                        {
+                            this.recentFiles[item.path] = item.name;
+                        }
+                        else
+                        {
+                            this.recentFiles.Add(item.path, item.name);
+                        }
+                        break;
 
-                //    default:
-                //        var fileGrouping = grouping;
-                //        if (this.unspecificContent.ContainsKey(item.path))
-                //        {
-                //            this.unspecificContent[item.path] = item.name;
-                //        }
-                //        else
-                //        {
-                //            this.unspecificContent.Add(item.path, item.name);
-                //        }
-                //        break;
-                //}
+                    default:
+                        if (this.unspecificContent.ContainsKey(item.path))
+                        {
+                            this.unspecificContent[item.path] = item.name;
+                        }
+                        else
+                        {
+                            this.unspecificContent.Add(item.path, item.name);
+                        }
+                        break;
+                }
             }
         }
 
