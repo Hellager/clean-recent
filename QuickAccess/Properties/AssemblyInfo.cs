@@ -6,11 +6,11 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("QuickAccess")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("Help better manage your windows quick acess")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("QuickAccess")]
-[assembly: AssemblyCopyright("Copyright ©  2022")]
+[assembly: AssemblyCopyright("Copyright ©  2023 Steins.")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

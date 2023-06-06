@@ -8,6 +8,7 @@ using System.Security.Principal;
 using System.Management.Automation;
 using System.Management.Automation.Runspaces;
 using Microsoft.Win32;
+using System.Globalization;
 using Shell32;
 
 
@@ -168,26 +169,34 @@ namespace QuickAccess
     public class QuickAccessHandler
     {
         /// <summary>
-        /// Instance variable <c>quickAccessShell</c> A shell instance to handle various actions.
+        /// Instance variable <c>quickAccessShell</c> <br /> 
+        /// A shell instance to handle various actions.
         /// </summary>
         private dynamic quickAccessShell;
 
-        // check language code at https://learn.microsoft.com/en-us/microsoft-365/cloud-storage-partner-program/faq/languages
+        /// <summary>
+        /// Instance variable <c>_isSupportedSystem</c> <br /> 
+        /// Whether current system is supported, depending on system's ui language.
+        /// </summary>
+        private bool _isSupportedSystem;
 
         /// <summary>
-        /// Instance variable <c>QuickAccessMenuName</c> Store the quick access menu name in windows. In en-US, it should be "Quick access". <br /> If not set properly, will fail to remove item from quick access list.
+        /// Instance variable <c>quickAccessCommandName</c> <br />
+        /// Command name about quick access in different language.
         /// </summary>
-        private Dictionary<string, string> QuickAccessMenuName;
+        private Dictionary<string, List<string>> quickAccessCommandName;
 
         /// <summary>
-        /// Instance variable <c>FileExplorerMenuName</c> Store the file explorer menu name in windows. <br /> In en-US, it should be "File Explorer"
+        /// Instance variable <c>fileExplorerName</c> <br />
+        /// File explorer name in different language.
         /// </summary>
-        private Dictionary<string, string> FileExplorerMenuName;
+        private Dictionary<string, List<string>> fileExplorerName;
 
         /// <summary>
-        /// Instance variable <c>QuickAccessRegistryKeyPath</c> Represents the regisrty key path about quick access. <br /> Should be "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer".
+        /// Instance variable <c>QuickAccessRegistryKeyPath</c> <br />
+        /// The regisrty key path about quick access.
         /// </summary>
-        private string QuickAccessRegistryKeyPath;
+        private string QuickAccessRegistryKeyPath = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer";
 
         /// <summary>
         /// Instance variable <c>SEE_MASK_ASYNCOK</c> fMask value for "unpinfromhome".
@@ -199,20 +208,29 @@ namespace QuickAccess
         /// </summary>
         private const int CMIC_MASK_ASYNCOK = SEE_MASK_ASYNCOK;
 
-        // <resource name, resource path>
+        /// <summary>
+        /// Instance variable <c>quickAccessDict</c> Store quick access items. key: item path, value: item name.
+        /// </summary>
+        private Dictionary<string, string> quickAccessDict;
 
         /// <summary>
-        /// Instance variable <c>frequentFolders</c> Store frequent folders. key: folder path, value: folder name.
+        /// Instance variable <c>frequentFolders</c> <br />
+        /// Frequent folders in quick access. <br />
+        /// Key: folder path, value: folder name.
         /// </summary>
         private Dictionary<string, string> frequentFolders;
 
         /// <summary>
-        /// Instance variable <c>recentFiles</c> Store recent files. key: file path, value: file name.
+        /// Instance variable <c>recentFiles</c> <br />
+        /// Recent files in quick access. <br />
+        /// Key: file path, value: file name.
         /// </summary>
         private Dictionary<string, string> recentFiles;
 
         /// <summary>
-        /// Instance variable <c>unspecificContent</c> Unknown type items in quick access list. key: item path, value: item name.
+        /// Instance variable <c>unspecificContent</c> <br />
+        /// Items with unspecific type in quick access. <br />
+        /// key: item path, value: item name.
         /// </summary>
         private Dictionary<string, string> unspecificContent;
 
@@ -252,30 +270,48 @@ namespace QuickAccess
 
         public QuickAccessHandler()
         {
-            this.QuickAccessMenuName = new Dictionary<string, string>
+            this.quickAccessCommandName = new Dictionary<string, List<string>>
             {
-                {"zh-CN", "快速访问"},
-                {"zh-TW", "快速存取" },
-                {"en-US", "Quick access"},
-                {"fr-FR", "Accès rapide"},
-                {"ru-RU", "доступа" }
+                {"zh-CN", new List<string>{ /*Win10*/ "从“快速访问”", "最近使用", /*Win11*/ "从“最近使用的"}},
+                {"zh-TW", new List<string>{ /*Win10*/ "從快速存取移除", "從 [快速存取]", /*Win11*/ "從最近使用中移" }},
+                {"en-US", new List<string>{ /*Win10*/ "Remove from Qui", "Unpin from Quic", /*Win11*/ "Remove from Rec"}},
+                {"fr-FR", new List<string>{ /*Win10*/ "Supprimer de l'", "Désépingler d", /*Win11*/ "Supprimer de R"}},
+                {"ru-RU", new List<string>{ /*Win10*/ "Удалить" /*Win11*/}},
+                {"unspecific", new List<string> { } }
             };
-            this.FileExplorerMenuName = new Dictionary<string, string>
+            this.fileExplorerName = new Dictionary<string, List<string>>
             {
-                {"zh-CN", "文件资源管理器"},
-                {"zh-TW", "檔案總管" },
-                {"en-US", "File Explorer"},
-                {"fr-FR", "Explorateur de fichiers"},
-                {"ru-RU", "проводник" }
+                {"zh-CN", new List<string>{ "文件资源管理器" } },
+                {"zh-TW", new List<string>{ "檔案總管" } },
+                {"en-US", new List<string>{ "File Explorerr" } },
+                {"fr-FR", new List<string>{ "Explorateur de fichiers" } },
+                {"ru-RU", new List<string>{ "Проводник" } },
+                {"unspecific", new List<string> { } }
             };
-            this.QuickAccessRegistryKeyPath = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer";
             this.quickAccessShell = Activator.CreateInstance(Type.GetTypeFromProgID("Shell.Application"));
 
+            this.quickAccessDict = new Dictionary<string, string>();
             this.frequentFolders = new Dictionary<string, string>();
             this.recentFiles = new Dictionary<string, string>();
             this.unspecificContent = new Dictionary<string, string>();
 
-            GetQuickAccess();
+            this.GetQuickAccess();
+            this._isSupportedSystem = CheckIsSupportedSystem();
+        }
+
+        /******************************************* General Funtions *******************************************/
+
+        /// <summary>
+        /// This method removes '"' in string sides.
+        /// </summary>
+        /// (<paramref name="data"/>).
+        /// <returns>
+        /// Trimmed string, from "\"hellow\"" to "hello".
+        /// </returns>
+        /// <param><c>data</c> Given string.</param>
+        private string TrimQuotes(string data)
+        {
+            return data.Trim('"');
         }
 
         /// <summary>
@@ -285,142 +321,33 @@ namespace QuickAccess
         /// <returns>
         /// True if the given path exists whether it's file or folder, else false.
         /// </returns>
-        /// <param><c>path</c> is the given path string.</param>
+        /// <param><c>path</c> Given path.</param>
         private bool IsValidPath(string path)
         {
             return (File.Exists(path) ^ Directory.Exists(path));
         }
 
         /// <summary>
-        /// This method checks whether given menuName is in QuickAccessMenuName dict.
+        /// This method checks whether current user has system administrator privilege.
         /// </summary>
-        /// (<paramref name="menuName"/>).
         /// <returns>
-        /// True if the given menuName is in QuickAccessMenuName dict, else false.
+        /// True if current user has system administrator privilege, else false.
         /// </returns>
-        /// <param><c>menuName</c> is the given menuName string.</param>
-        public bool IsInQuickAccessMenuName(string menuName)
+        public bool IsAdminPrivilege()
         {
-            foreach (string value in this.QuickAccessMenuName.Values)
+            using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
             {
-                if (menuName == value)
-                {
-                    return true;
-                }
+                WindowsPrincipal principal = new WindowsPrincipal(identity);
+                return principal.IsInRole(WindowsBuiltInRole.Administrator);
             }
-
-            return false;
         }
 
         /// <summary>
-        /// This method checks whether given languageCode is supported language about QuickAccessMenuName.
-        /// </summary>
-        /// (<paramref name="languageCode"/>).
-        /// <returns>
-        /// True if the given languageCode is supported language about QuickAccessMenuName, else false.
-        /// </returns>
-        /// <param><c>languageCode</c> is the given languageCode string. For example 'en-US'.</param>
-        public bool IsSupportedQuickAccessLanguage(string languageCode)
-        {
-            foreach (string key in this.QuickAccessMenuName.Keys)
-            {
-                if (languageCode == key)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// This method adds given languageCode with given menuName to QuickAccessMenuName dict.
-        /// </summary>
-        /// (<paramref name="languageCode"/>,<paramref name="menuName"/>).
-        /// <param><c>languageCode</c> is the given languageCode string. For example 'en-US'.</param>
-        /// <param><c>menuName</c> is the given menuName string.</param>
-        public void AddQuickAccessMenuName(string languageCode, string menuName)
-        {
-            if (IsSupportedQuickAccessLanguage(languageCode) || IsInQuickAccessMenuName(menuName)) return;
-
-            this.QuickAccessMenuName.Add(languageCode, menuName);  
-        }
-
-        /// <summary>
-        /// This method checks whether given menuName is in FileExplorerMenuName dict.
-        /// </summary>
-        /// (<paramref name="menuName"/>).
-        /// <returns>
-        /// True if the given menuName is in FileExplorerMenuName dict, else false.
-        /// </returns>
-        /// <param><c>menuName</c> is the given menuName string.</param>
-        public bool IsInFileExplorerMenuName(string menuName)
-        {
-            foreach (string value in this.FileExplorerMenuName.Values)
-            {
-                if (menuName == value)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// This method checks whether given languageCode is supported language about FileExplorerMenuName.
-        /// </summary>
-        /// (<paramref name="languageCode"/>).
-        /// <returns>
-        /// True if the given languageCode is supported language about FileExplorerMenuName, else false.
-        /// </returns>
-        /// <param><c>languageCode</c> is the given languageCode string. For example 'en-US'.</param>
-        public bool IsSupportedFileExplorerLanguage(string languageCode)
-        {
-            foreach (string key in this.FileExplorerMenuName.Keys)
-            {
-                if (languageCode == key)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// This method adds given languageCode with given menuName to FileExplorerMenuName dict.
-        /// </summary>
-        /// (<paramref name="languageCode"/>,<paramref name="menuName"/>).
-        /// <param><c>languageCode</c> is the given languageCode string. For example 'en-US'.</param>
-        /// <param><c>menuName</c> is the given menuName string.</param>
-        public void AddFileExplorerMenuName(string languageCode, string menuName)
-        {
-            if (IsSupportedFileExplorerLanguage(languageCode) || IsInFileExplorerMenuName(menuName)) return;
-
-            this.FileExplorerMenuName.Add(languageCode, menuName);
-        }
-
-        /// <summary>
-        /// This method gets the supported langugaes. Support zh-CN, zh-TW, en-US, fr-FR, ru-RU by default.
-        /// </summary>
-        /// <returns>
-        /// True if the given languageCode is supported language about FileExplorerMenuName, else false.
-        /// </returns>
-        public List<string> GetSupportLanguages()
-        {
-            List<string> supportQuickAccessLanguage = new List<string>(this.QuickAccessMenuName.Keys);
-            List<string> supportFileExplorerLanguage = new List<string>(this.FileExplorerMenuName.Keys);
-
-            return supportQuickAccessLanguage.Intersect(supportFileExplorerLanguage).ToList();
-        }
-
-        /// <summary>
-        /// This method refreshes the file explorer. Should correctly set FileExplorerMenuName dict to support different language. <br />
-        /// Refered from @Adam https://stackoverflow.com/questions/2488727/refresh-windows-explorer-in-win7
+        /// This method refreshes the file explorer.
         /// </summary>
         private void RefreshFileExplorer()
         {
+            // Refer from [Refresh Windows Explorer in Win7](https://stackoverflow.com/questions/2488727/refresh-windows-explorer-in-win7)
             Guid CLSID_ShellApplication = new Guid("13709620-C279-11CE-A49E-444553540000");
             Type shellApplicationType = Type.GetTypeFromCLSID(CLSID_ShellApplication, true);
 
@@ -436,24 +363,381 @@ namespace QuickAccess
 
                 // only refresh windows explorers
                 string itemName = (string)itemType.InvokeMember("Name", System.Reflection.BindingFlags.GetProperty, null, item, null);
-                foreach (string menuName in this.FileExplorerMenuName.Values)
+                foreach (var nameArr in this.fileExplorerName.Values)
                 {
-                    if (itemName == menuName)
+                    if (nameArr.Contains(itemName))
                     {
                         itemType.InvokeMember("Refresh", System.Reflection.BindingFlags.InvokeMethod, null, item, null);
+                    }
+                    else
+                    {
+                        foreach (var name in nameArr)
+                        {
+                            if (name.Contains(itemName))
+                            {
+                                itemType.InvokeMember("Refresh", System.Reflection.BindingFlags.InvokeMethod, null, item, null);
+                            }
+                        }
                     }
                 }
             }
         }
 
+        /******************************* Funtions About Internationalization Support *******************************/
+
         /// <summary>
-        /// This method gets the quick access items throuth shell instance and stores them in frequentFolders/recentFiles/unspecificContent. <br />
-        /// Refered from @Simon Mourier https://stackoverflow.com/questions/41048080/how-do-i-get-the-name-of-each-item-in-windows-10-quick-access-items-list-and-p
+        /// This method checks whether given name is in quickAccessCommandName dict.
+        /// </summary>
+        /// (<paramref name="name"/>).
+        /// <returns>
+        /// True if the given name is in quickAccessCommandName dict, else false.
+        /// </returns>
+        /// <param><c>name</c> Given name.</param>
+        private bool IsInQuickAccessCommandName(string name)
+        {
+            foreach (var commandNameArr in this.quickAccessCommandName.Values)
+            {
+                if (commandNameArr.Contains(name))
+                {
+                    return true;
+                }
+                else
+                {
+                    foreach (var commandName in commandNameArr)
+                    {
+                        if (commandName.Contains(name))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// This method checks whether given command name is supported.
+        /// </summary>
+        /// (<paramref name="name"/>).
+        /// <returns>
+        /// True if the given command name is supported, else false.
+        /// </returns>
+        /// <param><c>name</c> Given name.</param>
+        private bool IsSupportedCommandName(string name)
+        {
+            foreach (var commandNameArr in this.quickAccessCommandName.Values)
+            {
+                if (commandNameArr.Contains(name))
+                {
+                    return true;
+                }
+                else
+                {
+                    foreach (var commandName in commandNameArr)
+                    {
+                        if (commandName.Contains(name))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// This method checks whether given language code is supported.
+        /// </summary>
+        /// (<paramref name="code"/>).
+        /// <returns>
+        /// True if the given language code is supported, else false.
+        /// </returns>
+        /// <param><c>code</c> Given language code, like 'en-US'.</param>
+        private bool IsSupportedLanguage(string code)
+        {
+            return this.quickAccessCommandName.ContainsKey(code);
+        }
+
+        /// <summary>
+        /// This method checks whether current system's command name about quick access is supported by default.
+        /// </summary>
+        /// <returns>
+        /// True if is supported by default, else false.
+        /// </returns>
+        private bool CheckIsDefaultSupportedCommandName()
+        {
+            if (this.frequentFolders.Keys.Count == 0 && this.recentFiles.Keys.Count == 0)
+                return false;
+
+            var selectedFolder = this.frequentFolders.Keys.ToList()[0];
+            var selectedFile = recentFiles.Keys.ToList()[0];
+
+            // declare variables
+            HRESULT hr = HRESULT.E_FAIL;
+            IntPtr pidlFull = IntPtr.Zero;
+            uint rgflnOut = 0;
+            string sPath = "shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}";
+
+            // Creates a pointer to an item identifier list (PIDL) from a path.
+            hr = SHILCreateFromPath(sPath, out pidlFull, ref rgflnOut);
+            if (hr == HRESULT.S_OK)
+            {
+                IntPtr pszName = IntPtr.Zero;
+                IShellItem pShellItem;
+
+                // Creates and initializes a Shell item object from a pointer to an item identifier list (PIDL).
+                hr = SHCreateItemFromIDList(pidlFull, typeof(IShellItem).GUID, out pShellItem);
+                if (hr == HRESULT.S_OK)
+                {
+                    // Get Windows Quick Access Folder
+                    hr = pShellItem.GetDisplayName(SIGDN.SIGDN_NORMALDISPLAY, out pszName);
+                    if (hr == HRESULT.S_OK)
+                    {
+                        string sDisplayName = Marshal.PtrToStringUni(pszName);
+                        // Console.WriteLine(string.Format("Folder NameisDefaultSupport : {0}", sDisplayName));
+                        Marshal.FreeCoTaskMem(pszName);
+                    }
+
+                    IEnumShellItems pEnumShellItems = null;
+                    IntPtr pEnum;
+                    Guid BHID_EnumItems = new Guid("94f60519-2850-4924-aa5a-d15e84868039");
+                    Guid BHID_SFUIObject = new Guid("3981e225-f559-11d3-8e3a-00c04f6837d5");
+
+                    hr = pShellItem.BindToHandler(IntPtr.Zero, BHID_EnumItems, typeof(IEnumShellItems).GUID, out pEnum);
+                    if (hr == HRESULT.S_OK)
+                    {
+                        pEnumShellItems = Marshal.GetObjectForIUnknown(pEnum) as IEnumShellItems;
+                        IShellItem psi = null;
+                        uint nFetched = 0;
+
+                        while (HRESULT.S_OK == pEnumShellItems.Next(1, out psi, out nFetched) && nFetched == 1)
+                        {
+                            // Get Quick Access Item Absolute Path
+                            pszName = IntPtr.Zero;
+                            hr = psi.GetDisplayName(SIGDN.SIGDN_FILESYSPATH, out pszName);
+
+                            if (hr == HRESULT.S_OK)
+                            {
+                                string sDisplayName = Marshal.PtrToStringUni(pszName);
+                                Marshal.FreeCoTaskMem(pszName);
+
+                                if (sDisplayName == selectedFile || sDisplayName == selectedFolder)
+                                {
+                                    IContextMenu pContextMenu;
+                                    IntPtr pcm;
+                                    hr = psi.BindToHandler(IntPtr.Zero, BHID_SFUIObject, typeof(IContextMenu).GUID, out pcm);
+                                    if (hr == HRESULT.S_OK)
+                                    {
+                                        pContextMenu = Marshal.GetObjectForIUnknown(pcm) as IContextMenu;
+                                        IntPtr hMenu = CreatePopupMenu();
+                                        hr = pContextMenu.QueryContextMenu(hMenu, 0, 1, 0x7fff, 0);
+
+                                        if (hr == HRESULT.S_OK)
+                                        {
+                                            int nNbItems = GetMenuItemCount(hMenu);
+                                            for (int i = nNbItems - 1; i >= 0; i--)
+                                            {
+                                                MENUITEMINFO mii = new MENUITEMINFO();
+                                                mii.fMask = (uint)(MenuItemInfo_fMask.MIIM_FTYPE |
+                                                            MenuItemInfo_fMask.MIIM_ID |
+                                                            MenuItemInfo_fMask.MIIM_SUBMENU |
+                                                            MenuItemInfo_fMask.MIIM_DATA);
+
+                                                if (GetMenuItemInfo(hMenu, (uint)i, true, mii))
+                                                {
+                                                    StringBuilder menuName = new StringBuilder();
+                                                    GetMenuString(hMenu, (uint)i, menuName, menuName.Capacity, (uint)MenuString_Pos.MF_BYPOSITION);
+
+                                                    if (menuName.ToString() == "") continue;
+
+                                                    foreach (var commandNameArr in this.quickAccessCommandName.Values)
+                                                    {
+                                                        foreach (var name in commandNameArr)
+                                                        {
+                                                            if (name.Contains(menuName.ToString()))
+                                                            {
+                                                                return true;
+                                                            }
+
+                                                        }
+                                                    }
+
+                                                }
+                                            }
+                                        }
+                                        DestroyMenu(hMenu);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// This method checks whether current system is supported.
+        /// </summary>
+        /// <returns>
+        /// True if current system is supported, else false.
+        /// </returns>
+        private bool CheckIsSupportedSystem()
+        {
+            var currentCulture = CultureInfo.CurrentUICulture.Name;
+            if (this.quickAccessCommandName.ContainsKey(currentCulture))
+                return true;
+
+            return CheckIsDefaultSupportedCommandName();
+        }
+
+        /// <summary>
+        /// This method returns whether current system is supported.
+        /// </summary>
+        /// <returns>
+        /// True if current system is supported, else false.
+        /// </returns>
+        public bool isSupportedSystem()
+        {
+            return this._isSupportedSystem;
+        }
+
+        /// <summary>
+        /// This method adds given language code with given command name list to quickAccessCommandName dict.
+        /// </summary>
+        /// (<paramref name="languageCode"/>,<paramref name="commandNames"/>).
+        /// <param><c>languageCode</c> Given language code like 'en-US'.</param>
+        /// <param><c>commandNames</c> Given command name list.</param>
+        private void AddquickAccessCommandName(string languageCode, List<string> commandNames)
+        {
+            if (IsSupportedLanguage(languageCode)) return;
+
+            this.quickAccessCommandName.Add(languageCode, commandNames);
+        }
+
+        /// <summary>
+        /// This method adds given command name to quickAccessCommandName dict.
+        /// </summary>
+        /// (<paramref name="name"/>).
+        /// <param><c>name</c> Given command name.</param>
+        public void AddquickAccessCommandName(string name)
+        {
+            if (name == "") return;
+
+            var unspecificArr = this.quickAccessCommandName["unspecific"];
+
+            unspecificArr.Add(name);
+
+            this.quickAccessCommandName["unspecific"] = unspecificArr;
+        }
+
+        /// <summary>
+        /// This method checks whether given name is in fileExplorerName dict.
+        /// </summary>
+        /// (<paramref name="name"/>).
+        /// <returns>
+        /// True if the given name is in fileExplorerName dict, else false.
+        /// </returns>
+        /// <param><c>name</c> Given name.</param>
+        private bool IsInFileExplorerName(string name)
+        {
+            foreach (var nameArr in this.fileExplorerName.Values)
+            {
+                if (nameArr.Contains(name))
+                {
+                    return true;
+                }
+                else
+                {
+                    foreach (var _name in nameArr)
+                    {
+                        if (_name.Contains(name))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// This method checks whether given languageCode is supported language about file explorer.
+        /// </summary>
+        /// (<paramref name="languageCode"/>).
+        /// <returns>
+        /// True if the given languageCode is supported language about file explorer, else false.
+        /// </returns>
+        /// <param><c>languageCode</c> Given language code like 'en-US'.</param>
+        private bool IsSupportedFileExplorerLanguage(string languageCode)
+        {
+            return this.fileExplorerName.ContainsKey(languageCode);
+        }
+
+        /// <summary>
+        /// This method adds given languageCode with given menuName to fileExplorerName dict.
+        /// </summary>
+        /// (<paramref name="languageCode"/>,<paramref name="menuNames"/>).
+        /// <param><c>languageCode</c> Given language code like 'en-US'.</param>
+        /// <param><c>menuNames</c> Given menu name list.</param>
+        private void AddFileExplorerMenuName(string languageCode, List<string> menuNames)
+        {
+            if (IsSupportedFileExplorerLanguage(languageCode)) return;
+
+            this.fileExplorerName.Add(languageCode, menuNames);
+        }
+
+        /// <summary>
+        /// This method adds given name to fileExplorerName dict.
+        /// </summary>
+        /// (<paramref name="name"/>).
+        /// <param><c>name</c> Given name.</param>
+        public void AddFileExplorerMenuName(string name)
+        {
+            if (name == "") return;
+
+            var unspecificArr = this.fileExplorerName["unspecific"];
+
+            unspecificArr.Add(name);
+
+            this.fileExplorerName["unspecific"] = unspecificArr;
+        }
+
+        /// <summary>
+        /// This method gets the default support langugaes. <br/>
+        /// Support zh-CN, zh-TW, en-US, fr-FR, ru-RU by default.
+        /// </summary>
+        /// <returns>
+        /// List of support language codes.
+        /// </returns>
+        public List<string> GetDefaultSupportLanguages()
+        {
+            List<string> quickAccess = new List<string>(this.quickAccessCommandName.Keys);
+            List<string> fileExplorer = new List<string>(this.fileExplorerName.Keys);
+
+            return quickAccess.Intersect(fileExplorer).ToList().Distinct().ToList();
+        }
+
+
+        /******************************* Funtions About Quick Access Actions *******************************/
+
+        /// <summary>
+        /// This method gets the quick access items.<br />
         /// </summary>
         private void GetQuickAccess()
         {
+            // Refer from [How do I get the name of each item in windows 10 'quick access' items list and put it on a list?](https://stackoverflow.com/questions/41048080/how-do-i-get-the-name-of-each-item-in-windows-10-quick-access-items-list-and-p)
             var CLSID_HomeFolder = new Guid("679f85cb-0220-4080-b29b-5540cc05aab6");
             var quickAccess = this.quickAccessShell.Namespace("shell:::" + CLSID_HomeFolder.ToString("B"));
+
+            this.frequentFolders.Clear();
+            this.recentFiles.Clear();
+            this.unspecificContent.Clear();
+            this.quickAccessDict.Clear();
 
             foreach (var item in quickAccess.Items())
             {
@@ -505,37 +789,38 @@ namespace QuickAccess
                         break;
                 }
             }
-        }
-
-        /// <summary>
-        /// This method gets the quick access items in the form of a dictionary. <item path, item name>
-        /// </summary>
-        /// <returns>
-        /// The quick access items dictionary combines frequentFolders/recentFiles/unspecificContent.
-        /// </returns>
-        public Dictionary<string, string> GetQuickAccessDict()
-        {
-            GetQuickAccess();
 
             List<Dictionary<string, string>> quickAccessList = new List<Dictionary<string, string>> { this.frequentFolders, this.recentFiles, this.unspecificContent };
-            Dictionary<string, string> quickAccessDict = new Dictionary<string, string>();
 
             foreach (Dictionary<string, string> listItem in quickAccessList)
             {
                 foreach (KeyValuePair<string, string> quickAccessItem in listItem)
                 {
-                    quickAccessDict[quickAccessItem.Key] = quickAccessItem.Value;
+                    this.quickAccessDict[quickAccessItem.Key] = quickAccessItem.Value;
                 }
             }
-
-            return quickAccessDict;
         }
 
         /// <summary>
-        /// This method gets the frequent folders in quick access in the form of a dictionary. <folder path, folder name>
+        /// This method gets the quick access items in dictionary. <br />
+        /// Key for item path, value for item name.
         /// </summary>
         /// <returns>
-        /// The frequentFolders dictionary.
+        /// Quick access items dictionary.
+        /// </returns>
+        public Dictionary<string, string> GetQuickAccessDict()
+        {
+            GetQuickAccess();
+
+            return this.quickAccessDict;
+        }
+
+        /// <summary>
+        /// This method gets the frequent folders in quick access in dictionary. <br />
+        /// Key for folder path, value for folder name.
+        /// </summary>
+        /// <returns>
+        /// Frequent folders in dictionary.
         /// </returns>
         public Dictionary<string, string> GetFrequentFolders()
         {
@@ -545,10 +830,11 @@ namespace QuickAccess
         }
 
         /// <summary>
-        /// This method gets the recent files in quick access in the form of a dictionary. <file path, file name>
+        /// This method gets the recent files in quick access in dictionary. <br />
+        /// Key for file path, value for file name.
         /// </summary>
         /// <returns>
-        /// The recentFiles dictionary.
+        /// Recent files in dictionary.
         /// </returns>
         public Dictionary<string, string> GetRecentFiles()
         {
@@ -564,18 +850,16 @@ namespace QuickAccess
         /// <returns>
         /// True if the given path is valid and in quick access, else false.
         /// </returns>
-        /// <param><c>path</c> is the given path string,</param>
+        /// <param><c>path</c> Given path,</param>
         private bool IsPathInQuickAccess(string path)
         {
             GetQuickAccess();
 
             if (IsValidPath(path))
             {
-                var qucikAccessList = new List<Dictionary<string, string>> { this.frequentFolders, this.recentFiles, this.unspecificContent };
-
-                foreach (Dictionary<string, string> item in qucikAccessList)
+                foreach (var item in this.quickAccessDict.Keys)
                 {
-                    if (item.ContainsKey(path))
+                    if (item.Contains(path))
                     {
                         return true;
                     }
@@ -592,23 +876,21 @@ namespace QuickAccess
         /// <returns>
         /// True if the given keyword is in quick access, else false.
         /// </returns>
-        /// <param><c>keyword</c> is the given keyword string.</param>
+        /// <param><c>keyword</c> Given keyword.</param>
         private bool IsKeywordInQuickAccess(string keyword)
         {
             GetQuickAccess();
 
-            var qucikAccessList = new List<Dictionary<string, string>> { this.frequentFolders, this.recentFiles, this.unspecificContent };
-
-            foreach (Dictionary<string, string> accessDict in qucikAccessList)
+            String[] pathArr = this.quickAccessDict.Keys.ToArray<String>();
+            String[] nameArr = this.quickAccessDict.Values.ToArray<String>();
+            for (int i = 0; i < pathArr.Length; i++)
             {
-                foreach (KeyValuePair<string, string> item in accessDict)
+                if (pathArr[i].Contains(keyword) || nameArr[i].Contains(keyword))
                 {
-                    if (item.Key.Contains(keyword) || item.Value.Contains(keyword))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
             }
+
             return false;
         }
 
@@ -622,20 +904,31 @@ namespace QuickAccess
         /// <param><c>data</c> is the given string, whether it's full path or just keyword..</param>
         public bool IsInQuickAccess(string data)
         {
+            if (data == "") return false;
+
             return (IsPathInQuickAccess(data) || IsKeywordInQuickAccess(data));
         }
 
         /// <summary>
-        /// This method pins folder to quick access with runspace factory.
-        /// Using try catch to adapt tauri app.
-        /// https://stackoverflow.com/questions/36739317/programatically-pin-unpin-the-folder-from-quick-access-menu-in-windows-10
+        /// This method update quick access items.
+        /// </summary>
+        public void UpdateQuickAccess()
+        {
+            this.GetQuickAccess();
+        }
+
+        /// <summary>
+        /// This method pins folder to quick access. <br />
+        /// It may get stuck, try add a timeout handle.
         /// </summary>
         /// (<paramref name="path"/>).
-        /// <param><c>path</c> is the given folder path.</param>
+        /// <param><c>path</c> Given folder path.</param>
         private void PinFolderToQuickAccess(string path)
         {
             try
             {
+                // Solution 1
+                // Refer from [Programatically Pin\UnPin the folder from quick access menu in windows 10](https://stackoverflow.com/questions/36739317/programatically-pin-unpin-the-folder-from-quick-access-menu-in-windows-10)
                 using (var runspace = RunspaceFactory.CreateRunspace())
                 {
                     runspace.Open();
@@ -647,6 +940,54 @@ namespace QuickAccess
                     dynamic nameSpace = shellApplication.FirstOrDefault()?.Methods["NameSpace"].Invoke(path);
                     nameSpace?.Self.InvokeVerb("pintohome");
                 }
+
+                //// Solution 2
+                //// Refer from [Is it possible programmatically add folders to the Windows 10 Quick Access panel in the explorer window?](https://stackoverflow.com/questions/30051634/is-it-possible-programmatically-add-folders-to-the-windows-10-quick-access-panel/50032421#50032421)
+                //Type shellAppType = Type.GetTypeFromProgID("Shell.Application");
+                //Object shell = Activator.CreateInstance(shellAppType);
+                //Shell32.Folder2 f = (Shell32.Folder2)shellAppType.InvokeMember("NameSpace", System.Reflection.BindingFlags.InvokeMethod, null, shell, new object[] { path });
+                //f.Self.InvokeVerb("pintohome");
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine("Err: {0}", e);
+            }
+        }
+
+        /// <summary>
+        /// This method unpins folder from quick access. <br />
+        /// It may get stuck, try add a timeout handle.
+        /// </summary>
+        /// (<paramref name="path"/>).
+        /// <param><c>path</c> Given folder path.</param>
+        private void UnpinFolderFromQuickAccess(string path)
+        {
+            try
+            {
+                // Solution 1
+                // Refer from [Programatically Pin\UnPin the folder from quick access menu in windows 10](https://stackoverflow.com/questions/36739317/programatically-pin-unpin-the-folder-from-quick-access-menu-in-windows-10)
+                using (var runspace = RunspaceFactory.CreateRunspace())
+                {
+                    runspace.Open();
+                    var ps = PowerShell.Create();
+                    var removeScript =
+                        $"((New-Object -ComObject shell.application).Namespace(\"shell:::{{679f85cb-0220-4080-b29b-5540cc05aab6}}\").Items() | Where-Object {{ $_.Path -EQ \"{path}\" }}).InvokeVerb(\"unpinfromhome\")";
+                    ps.AddScript(removeScript);
+                    ps.Invoke();
+                }
+
+                //// Solution 2
+                //// Refer from [Is it possible programmatically add folders to the Windows 10 Quick Access panel in the explorer window?](https://stackoverflow.com/questions/30051634/is-it-possible-programmatically-add-folders-to-the-windows-10-quick-access-panel/50032421#50032421)
+                //Type shellAppType = Type.GetTypeFromProgID("Shell.Application");
+                //Object shell = Activator.CreateInstance(shellAppType);
+                //Shell32.Folder2 f2 = (Shell32.Folder2)shellAppType.InvokeMember("NameSpace", System.Reflection.BindingFlags.InvokeMethod, null, shell, new object[] { "shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}" });
+                //foreach (FolderItem fi in f2.Items())
+                //{
+                //    if (fi.Path == path)
+                //    {
+                //        ((FolderItem)fi).InvokeVerb("unpinfromhome");
+                //    }
+                //}
             }
             catch (Exception e)
             {
@@ -661,7 +1002,7 @@ namespace QuickAccess
         /// <returns>
         /// True if the given string is valid and in quick access after adding, else false.
         /// </returns>
-        /// <param><c>path</c> is the given path string.</param>
+        /// <param><c>path</c> Given path.</param>
         public bool AddToQuickAccess(string path)
         {
             if (!IsValidPath(path)) return false;
@@ -680,52 +1021,12 @@ namespace QuickAccess
         }
 
         /// <summary>
-        /// This method unpins folder from quick access with runspace factory.
-        /// Using try catch to adapt tauri app.
-        /// https://stackoverflow.com/questions/36739317/programatically-pin-unpin-the-folder-from-quick-access-menu-in-windows-10
+        /// This method removes given paths from quick access.
         /// </summary>
         /// (<paramref name="path"/>).
-        /// <param><c>path</c> is the given folder path.</param>
-        private void UnpinFolderFromQuickAccess(string path)
+        /// <param><c>path</c> Given path list.</param>
+        private void RemoveFromQuickAccessWithList(List<string> paths)
         {
-            try
-            {
-                using (var runspace = RunspaceFactory.CreateRunspace())
-                {
-                    runspace.Open();
-                    var ps = PowerShell.Create();
-                    var removeScript =
-                        $"((New-Object -ComObject shell.application).Namespace(\"shell:::{{679f85cb-0220-4080-b29b-5540cc05aab6}}\").Items() | Where-Object {{ $_.Path -EQ \"{path}\" }}).InvokeVerb(\"unpinfromhome\")";
-
-                    ps.AddScript(removeScript);
-                    ps.Invoke();
-                }
-            }
-            catch (Exception e)
-            {
-                Console.Error.WriteLine("Err: {0}", e);
-            }
-        }
-
-        /// <summary>
-        /// This method removes given full path item from quick access.
-        /// </summary>
-        /// (<paramref name="path"/>).
-        /// <returns>
-        /// True if the given full path item is not in quick access after removing, else false.
-        /// </returns>
-        /// <param><c>path</c> is the given path string.</param>
-        private bool RemoveFromQuickAccessWithFullPath(string path)
-        {
-            if (!IsValidPath(path)) return false;
-
-            if (Directory.Exists(path))
-            {
-                UnpinFolderFromQuickAccess(path);
-
-                if (!IsPathInQuickAccess(path)) return true;
-            }
-
             // declare variables
             HRESULT hr = HRESULT.E_FAIL;
             IntPtr pidlFull = IntPtr.Zero;
@@ -776,7 +1077,7 @@ namespace QuickAccess
                                 // Console.WriteLine(string.Format("\tItem Name : {0}", sDisplayName));
                                 Marshal.FreeCoTaskMem(pszName);
 
-                                if (sDisplayName == path)
+                                if (paths.Contains(sDisplayName))
                                 {
                                     IContextMenu pContextMenu;
                                     IntPtr pcm;
@@ -795,6 +1096,7 @@ namespace QuickAccess
                                             int nNbItems = GetMenuItemCount(hMenu);
                                             for (int i = nNbItems - 1; i >= 0; i--)
                                             {
+                                                bool isTargetCommand = false;
                                                 MENUITEMINFO mii = new MENUITEMINFO();
                                                 mii.fMask = (uint)(MenuItemInfo_fMask.MIIM_FTYPE |
                                                             MenuItemInfo_fMask.MIIM_ID |
@@ -807,15 +1109,21 @@ namespace QuickAccess
                                                     StringBuilder menuName = new StringBuilder();
                                                     GetMenuString(hMenu, (uint)i, menuName, menuName.Capacity, (uint)MenuString_Pos.MF_BYPOSITION);
 
-                                                    foreach (string item in this.QuickAccessMenuName.Values)
+                                                    foreach (var menuNameArr in this.quickAccessCommandName.Values)
                                                     {
-                                                        if (menuName.ToString().Contains(item))
+                                                        foreach (var name in menuNameArr)
                                                         {
-                                                            nCommand = (int)mii.wID;
-                                                            break;
+                                                            if (menuName.ToString().Contains(name))
+                                                            {
+                                                                nCommand = (int)mii.wID;
+                                                                isTargetCommand = true;
+                                                                break;
+                                                            }
                                                         }
+                                                        if (isTargetCommand) break;
                                                     }
                                                 }
+                                                if (isTargetCommand) break;
                                             }
 
                                             CMINVOKECOMMANDINFO ici = new CMINVOKECOMMANDINFO();
@@ -828,7 +1136,11 @@ namespace QuickAccess
 
                                             if (hr == HRESULT.S_OK)
                                             {
-                                                break;
+                                                continue;
+                                            }
+                                            else
+                                            {
+                                                Console.Error.WriteLine("Failed to remove target: " + sDisplayName);
                                             }
                                         }
                                         DestroyMenu(hMenu);
@@ -839,53 +1151,36 @@ namespace QuickAccess
                     }
                 }
             }
-
-            return !IsPathInQuickAccess(path);
-        }
-
-        /// <summary>
-        /// This method removes given keyword item from quick access.
-        /// </summary>
-        /// (<paramref name="path"/>).
-        /// <returns>
-        /// True if the given keyword item is not in quick access after removing, else false.
-        /// </returns>
-        /// <param><c>keyword</c> is the given keyword string.</param>
-        private bool RemoveFromQuickAccessWithKeyword(string keyword)
-        {
-            var CurrentQuickAccessDict = GetQuickAccessDict();
-
-            foreach(var item in CurrentQuickAccessDict)
-            {
-                if (item.Key.Contains(keyword))
-                {
-                    RemoveFromQuickAccessWithFullPath(item.Key);
-                }
-            }
-
-            return !IsKeywordInQuickAccess(keyword);
         }
 
         /// <summary>
         /// This method removes given data from quick access.
         /// </summary>
-        /// (<paramref name="path"/>).
-        /// <returns>
-        /// True if the given data is not in quick access after removing, else false.
-        /// </returns>
-        /// <param><c>data</c> is the given data string.</param>
-        public bool RemoveFromQuickAccess(string data)
+        /// (<paramref name="data"/>).
+        /// <param><c>data</c> Given data list.</param>
+        public void RemoveFromQuickAccess(List<string> data)
         {
-            if (IsValidPath(data))
+            GetQuickAccess();
+
+            List<string> targetList = new List<string> { };
+
+            String[] pathArr = this.quickAccessDict.Keys.ToArray<String>();
+            String[] nameArr = this.quickAccessDict.Values.ToArray<String>();
+
+            for (int i = 0; i < data.Count; i++)
             {
-                RemoveFromQuickAccessWithFullPath(data);
-            } 
-            else
-            {
-                RemoveFromQuickAccessWithKeyword(data);
+                for (int j = 0; j < pathArr.Length; j++)
+                {
+                    if (pathArr[j].Contains(data[i]) || nameArr[j].Contains(data[i]))
+                    {
+                        targetList.Add(pathArr[j]);
+                    }
+                }
             }
 
-            return !IsInQuickAccess(data);
+            if (targetList.Count == 0) return;
+
+            this.RemoveFromQuickAccessWithList(targetList);
         }
 
         /// <summary>
@@ -901,16 +1196,11 @@ namespace QuickAccess
         /// </summary>
         public void EmptyFrequentFolders()
         {
-            var CurrentFrequentFolders = this.GetFrequentFolders();
-
-            foreach(var item in CurrentFrequentFolders)
-            {
-                RemoveFromQuickAccessWithFullPath(item.Key);
-            }
+            this.RemoveFromQuickAccessWithList(this.GetFrequentFolders().Keys.ToList<string>());
         }
 
         /// <summary>
-        /// This method clears the quick access.
+        /// This method clears all items in quick access.
         /// </summary>
         public void EmptyQuickAccess()
         {
@@ -919,23 +1209,10 @@ namespace QuickAccess
             EmptyFrequentFolders();
         }
 
-        /// <summary>
-        /// This method checks whether current user has system administrator privilege.
-        /// </summary>
-        /// <returns>
-        /// True if current user has system administrator privilege, else false.
-        /// </returns>
-        public bool IsAdminPrivilege()
-        {
-            using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
-            {
-                WindowsPrincipal principal = new WindowsPrincipal(identity);
-                return principal.IsInRole(WindowsBuiltInRole.Administrator);
-            }
-        }
+        /******************************* Funtions About Show Quick Access *******************************/
 
         /// <summary>
-        /// This method updates the registry key value about quick access.
+        /// This method updates the registry key value about quick access. <br />
         /// If keyName is 'HubMode', should check admin privilege first.
         /// </summary>
         /// (<paramref name="keyName"/>,<paramref name="keyValue"/>).
@@ -965,9 +1242,9 @@ namespace QuickAccess
         /// The given registry key's value, -1 for no such key.
         /// </returns>
         /// <param><c>keyName</c> is the quick access registry key name.</param>
-        public int GetQuickAccessRegistryKey(string keyName)
+        private int GetQuickAccessRegistryKeyValue(string keyName)
         {
-            /// In a x86 machine or program, key 'HubMode' won't be about to get, which means it will always return -1.
+            /// In a x86 machine or program, key 'HubMode' is not able to get, which means it will always return -1.
             /// https://stackoverflow.com/questions/13324920/regedit-shows-keys-that-are-not-listed-using-getsubkeynames
             RegistryKey hklm = (keyName == "HubMode") ? Registry.LocalMachine : Registry.CurrentUser;
             RegistryKey hkExplorer = hklm.OpenSubKey(this.QuickAccessRegistryKeyPath);
@@ -983,7 +1260,8 @@ namespace QuickAccess
         }
 
         /// <summary>
-        /// This method checks whether show frequent folders or recent files.
+        /// This method checks whether show frequent folders or recent files. <br />
+        /// AccessType 0 for all type, 1 for frequent folder, 2 for recent files, 3 for side menu quick access.
         /// </summary>
         /// (<paramref name="accessType"/>).
         /// <param><c>keyName</c> is the quick access type. 0 for all type, 1 for frequent folder, 2 for recent files, 3 for side menu quick access, other returns false.</param>
@@ -995,15 +1273,15 @@ namespace QuickAccess
 
             if (accessType == 0)
             {
-                int ShowFrequentValue = GetQuickAccessRegistryKey("ShowFrequent");
-                int ShowRecentValue = GetQuickAccessRegistryKey("ShowRecent");
-                int HubModeValue = GetQuickAccessRegistryKey("HubMode");
+                int ShowFrequentValue = GetQuickAccessRegistryKeyValue("ShowFrequent");
+                int ShowRecentValue = GetQuickAccessRegistryKeyValue("ShowRecent");
+                int HubModeValue = GetQuickAccessRegistryKeyValue("HubMode");
 
                 isShow = ((ShowFrequentValue == 0) || (ShowRecentValue == 0) || (HubModeValue == 1)) ? false : true;
             }
             else if (accessType > 0 && accessType <= 3)
             {
-                registrykeyValue = GetQuickAccessRegistryKey(registryKey[accessType - 1]);
+                registrykeyValue = GetQuickAccessRegistryKeyValue(registryKey[accessType - 1]);
 
                 // If no such key about quick access, system will show quick access by default.
                 if (registrykeyValue == -1) return true;
@@ -1027,7 +1305,8 @@ namespace QuickAccess
         }
 
         /// <summary>
-        /// This method updates whether show frequent folders or recent files and will auto refresh file explorer if set language properly.
+        /// This method updates display status about quick access. <br />
+        /// AccessType 0 for all type, 1 for frequent folder, 2 for recent files, 3 for side menu quick access.
         /// </summary>
         /// (<paramref name="accessType"/>, <paramref name="isShow"/>).
         /// <param><c>keyName</c> is the quick access type. 0 for all type, 1 for frequent folder, 2 for recent files, 3 for side menu quick access, other returns false.</param>
