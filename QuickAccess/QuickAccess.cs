@@ -1188,7 +1188,8 @@ namespace QuickAccess
         /// </summary>
         public void EmptyRecentFiles()
         {
-            SHAddToRecentDocs(ShellAddToRecentDocsFlags.SHARD_PIDL, null);
+            // SHAddToRecentDocs(ShellAddToRecentDocsFlags.SHARD_PIDL, null);
+            this.RemoveFromQuickAccessWithList(this.GetRecentFiles().Keys.ToList<string>());
         }
 
         /// <summary>
