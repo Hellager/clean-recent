@@ -12,7 +12,7 @@ namespace QuickAccessTests
         {
             QuickAccessHandler handler = new QuickAccessHandler();
 
-            var isSupportedByDefault = handler.isSupportedSystem();
+            var isSupportedByDefault = handler.IsSupportedSystem();
 
             Console.WriteLine("Current system whether supported by default: " + isSupportedByDefault);
         }
@@ -21,7 +21,7 @@ namespace QuickAccessTests
         public void AddQuickAccessCommandName_WithGivenName()
         {
             QuickAccessHandler handler = new QuickAccessHandler();
-            bool isDefaultSupported = handler.isSupportedSystem();
+            bool isDefaultSupported = handler.IsSupportedSystem();
 
             string commandName = "";
 
@@ -29,7 +29,7 @@ namespace QuickAccessTests
             {
                 handler.AddquickAccessCommandName(commandName);
 
-                bool isCurrentSupported = handler.isSupportedSystem();
+                bool isCurrentSupported = handler.IsSupportedSystem();
 
                 Assert.AreNotEqual(isDefaultSupported, isCurrentSupported, "Invalid command name for current system");
             }
@@ -107,82 +107,17 @@ namespace QuickAccessTests
         }
 
         [TestMethod]
-        public void AddToQuickAccess_WithGivenPath()
-        {
-            QuickAccessHandler handler = new QuickAccessHandler();
-
-            string testPath = @"D:\test_add.txt";
-            try
-            {
-                if (!File.Exists(testPath))
-                {
-                    File.Create(testPath);
-                }
-            }
-            catch (IOException e)
-            {
-                Console.WriteLine("Failed to delete test file. Errmsg: " + e);
-            }
-
-            bool isTestPathExists = File.Exists(testPath);
-
-            Assert.IsTrue(isTestPathExists, "Failed to create test file");
-
-            // Since the function will directly return IsInQuickAccess(), no need to check it twice
-            bool addRes = handler.AddToQuickAccess(testPath);
-            Assert.IsTrue(addRes, "Failed to add test file to quick access");
-
-            bool addAnyRes = handler.AddToQuickAccess(@"Steins");
-            Assert.IsFalse(addAnyRes, "Should be false by adding a not valid path to quick access");
-
-            try
-            {
-                File.Delete(testPath);
-            }
-            catch (IOException e)
-            {
-                Console.WriteLine("Failed to delete test file. Errmsg: " + e);
-            }
-        }
-
-        [TestMethod]
         public void RemoveFromQuickAccess_WithAddFirst()
         {
             QuickAccessHandler handler = new QuickAccessHandler();
 
-            string testPath = @"D:\test_remove.txt";
-            try
-            {
-                if (!File.Exists(testPath))
-                {
-                    File.Create(testPath);
-                }
-            }
-            catch (IOException e)
-            {
-                Console.WriteLine("Failed to delete test file. Errmsg: " + e);
-            }
+            var recentFiles = handler.GetRecentFiles().Keys;
+            var toRemoveTarget = recentFiles.ElementAt(0);
 
-            bool isTestPathExists = File.Exists(testPath);
+            handler.RemoveFromQuickAccess(new List<string> { toRemoveTarget });
 
-            Assert.IsTrue(isTestPathExists, "Failed to create test file");
-
-            // Since the function will directly return IsInQuickAccess(), no need to check it twice
-            bool addRes = handler.AddToQuickAccess(testPath);
-            Assert.IsTrue(addRes, "Failed to add test file to quick access");
-
-            handler.RemoveFromQuickAccess(new List<string> { testPath });
-            bool removeRes = handler.IsInQuickAccess(testPath);
-            Assert.IsTrue(removeRes, "Failed to remove test file from quick access");
-
-            try
-            {
-                File.Delete(testPath);
-            }
-            catch (IOException e)
-            {
-                Console.WriteLine("Failed to delete test file. Errmsg: " + e);
-            }
+            bool res = handler.IsInQuickAccess(toRemoveTarget);
+            Assert.IsFalse(res, "Failed to remove item in quick access");
         }
 
         [TestMethod]
@@ -231,45 +166,7 @@ namespace QuickAccessTests
 
             var isAdmin = handler.IsAdminPrivilege();
 
-            Assert.IsFalse(isAdmin, "Current user is admin?");
-        }
-
-        [TestMethod]
-        public void UpdateShowQuickAccess_WithGivenAccessType()
-        {
-            QuickAccessHandler handler = new QuickAccessHandler();
-
-            if (handler.IsAdminPrivilege())
-            {
-                var isShow = handler.IsShowQuickAccess(0);
-                handler.UpdateShowQuickAccess(0, !isShow);
-
-                bool currentIsShow = handler.IsShowQuickAccess(0);
-
-                Assert.AreEqual(isShow, !currentIsShow, "Failed to show/hide all quick access");
-
-                handler.UpdateShowQuickAccess(0, isShow);
-            }
-            else
-            {
-                var isShowFrequent = handler.IsShowQuickAccess(0);
-                handler.UpdateShowQuickAccess(0, !isShowFrequent);
-
-                bool currentIsShowFrequent = handler.IsShowQuickAccess(0);
-
-                Assert.AreEqual(isShowFrequent, !currentIsShowFrequent, "Failed to show/hide frequent folders");
-
-                handler.UpdateShowQuickAccess(0, isShowFrequent);
-
-                var isShowRecent = handler.IsShowQuickAccess(0);
-                handler.UpdateShowQuickAccess(0, !isShowRecent);
-
-                bool currentIsShowRecent = handler.IsShowQuickAccess(0);
-
-                Assert.AreEqual(isShowRecent, !currentIsShowRecent, "Failed to show/hide recent files");
-
-                handler.UpdateShowQuickAccess(0, isShowRecent);
-            }
+            Assert.IsFalse(isAdmin, "Current user has no admin priviledge!");
         }
     }
 }
