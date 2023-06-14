@@ -27,6 +27,9 @@ namespace QuickAccessShell
 
             [Option('f', "frequent-folders", Required = false, HelpText = "List frequent folders.")]
             public bool IsListFrequentFolders { get; set; }
+
+            [Option('u', "ui-culture", Required = false, HelpText = "List system ui culture name.")]
+            public bool IsListUICulture { get; set; }
         }
 
         [Verb("remove", HelpText = "Remove items from quick access.")]
@@ -117,7 +120,8 @@ namespace QuickAccessShell
 
         private static int HandleListOptions(ListOptions options, QuickAccessHandler handler)
         {
-            Dictionary<string, string> res;
+            Dictionary<string, string> res = new Dictionary<string, string> { };
+            string uiCultureName = "";
 
             if (options.IsListRecentFiles)
             {
@@ -127,15 +131,24 @@ namespace QuickAccessShell
             {
                 res = handler.GetFrequentFolders();
             }
-            else
+            else if (options.IsListRecentFiles)
             {
                 res = handler.GetQuickAccessDict();
+            }
+            else if (options.IsListUICulture)
+            {
+                uiCultureName = handler.GetSystemUICultureCode();
             }
 
             ArrayList _data = new ArrayList { };
             foreach (var item in res)
             {
                 _data.Add(item.Key);
+            }
+
+            if (uiCultureName != "")
+            {
+                _data.Add(uiCultureName);
             }
 
             ArrayList _debug = new ArrayList { };
