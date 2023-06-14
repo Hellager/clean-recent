@@ -25,20 +25,22 @@ Open project in Visual Studio and build solution.
 ```shell
 $ .\QuickAccessShell.exe
 
-QuickAccessShell 1.0
-Copyright (c) 2023 Steins
+QuickAccessShell 0.0.0.1
+Copyright ©  2023 Steins.
 
 ERROR(S):
   No verb selected.
 
-  list       List current quick acess or supported language.
-  add        Add file or folder to quick access.
+  list       List current quick acess or supported languages.
+
   remove     Remove items from quick access.
-  show       Show/Hide quick access related.
-  check      Check whether in quick access or show quick access or supported
-             language.
+
+  check      Check whether in quick access or show quick access or supported language.
+
   empty      Empty quick access.
+
   help       Display more information on a specific command.
+
   version    Display version information.
 ```
 
@@ -54,34 +56,16 @@ ERROR(S):
   -r, --recent-files            List recent files.
 
   -f, --frequent-folders        List frequent folders.
-
-  -i, --internationalization    List supported languages.
-```
-
-### add
-
-```shell
-  value pos. 0                   Targets to add.
+  
+  -u, --ui-culture              List system ui culture name.
 ```
 
 ### remove
 
 ```shell
   value pos. 0                  Targets to remove.
-```
-
-### show
-
-```shell
-  value pos. 0                    (Default: true) Determine whether show or hide.
   
-  -a, --all                       Show/Hide all quick access related.
-
-  -r, --recent-files              Show/Hide recent files.
-
-  -f, --frequent-folders          Show/Hide frequent folders.
-
-  -m, --quick-access-menu         Show/Hide quick access menu.
+  -i, --internationalization    Add unsported language info
 ```
 
 ### check
@@ -91,15 +75,9 @@ ERROR(S):
   
   -q, --quick-access              Check whether in quick access.
 
-  -a, --all                       Check whether show all quick access related.
+  -s, --supported                 Check whether current system is supported
 
-  -r, --recent-files              Check whether show recent files.
-
-  -f, --frequent-folders          Check whether show frequent folders.
-
-  -m, --quick-access-menu         Check whether show quick access menu.
-
-  -i, --internationalization      Check whether supported language
+  -i, --internationalization      Add unsported language info
 ```
 
 ### empty
