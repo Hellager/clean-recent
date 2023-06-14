@@ -1,13 +1,16 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
-using System.Threading;
-using System.Globalization;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using CommandLine;
 using CommandLine.Text;
 using QuickAccess;
+using System.Collections;
+using System.Diagnostics;
+using System.Globalization;
+using System.Threading;
 
 namespace QuickAccessShell
 {
@@ -24,43 +27,16 @@ namespace QuickAccessShell
 
             [Option('f', "frequent-folders", Required = false, HelpText = "List frequent folders.")]
             public bool IsListFrequentFolders { get; set; }
-
-            [Option('i', "internationalization", Required = false, HelpText = "List supported languages.")]
-            public bool IsListSupportedLanguage { get; set; }
         }
-
-        [Verb("add", HelpText = "Add file or folder to quick access.")]
-        class AddOptions
-        {
-            [Value(0, HelpText = "Targets to add.")]
-            public IEnumerable<string> AddItems { get; set; }
-        }
-
 
         [Verb("remove", HelpText = "Remove items from quick access.")]
         class RemoveOptions
         {
             [Value(0, HelpText = "Targets to remove.")]
             public IEnumerable<string> RemoveItems { get; set; }
-        }
 
-        [Verb("show", HelpText = "Show/Hide quick access related.")]
-        class ShowOptions
-        {
-            [Value(0, Default = true, HelpText = "Determine whether show or hide.")]
-            public bool IsShow { get; set; }
-
-            [Option('a', "all", Required = false, HelpText = "Show/Hide all quick access related.")]
-            public bool IsShowAll { get; set; }
-
-            [Option('r', "recent-files", Required = false, HelpText = "Show/Hide recent files.")]
-            public bool IsShowRecentFiles { get; set; }
-
-            [Option('f', "frequent-folders", Required = false, HelpText = "Show/Hide frequent folders.")]
-            public bool IsShowFrequentFolders { get; set; }
-
-            [Option('m', "quick-access-menu", Required = false, HelpText = "Show/Hide quick access menu.")]
-            public bool IsShowQuickAccessMenu { get; set; }
+            [Option('i', "internationalization", Required = false, HelpText = "Add unsported language info")]
+            public IEnumerable<string> CommandNames { get; set; }
         }
 
         [Verb("check", HelpText = "Check whether in quick access or show quick access or supported language.")]
@@ -72,20 +48,11 @@ namespace QuickAccessShell
             [Option('q', "quick-access", Required = false, HelpText = "Check whether in quick access.")]
             public bool IsInQuickAccess { get; set; }
 
-            [Option('a', "all", Required = false, HelpText = "Check whether show all quick access related.")]
-            public bool IsShowAll { get; set; }
+            [Option('s', "supported", Required = false, HelpText = "Check whether current system is supported")]
+            public bool IsSupportedSystem { get; set; }
 
-            [Option('r', "recent-files", Required = false, HelpText = "Check whether show recent files.")]
-            public bool IsShowRecentFiles { get; set; }
-
-            [Option('f', "frequent-folders", Required = false, HelpText = "Check whether show frequent folders.")]
-            public bool IsShowFrequentFolders { get; set; }
-
-            [Option('m', "quick-access-menu", Required = false, HelpText = "Check whether show quick access menu.")]
-            public bool IsShowQuickAccessMenu { get; set; }
-
-            [Option('i', "internationalization", Required = false, HelpText = "Check whether support language")]
-            public bool IsCheckSupportedLanguage { get; set; }
+            [Option('i', "internationalization", Required = false, HelpText = "Add unsported language info")]
+            public IEnumerable<string> CommandNames { get; set; }
         }
 
         [Verb("empty", HelpText = "Empty quick access.")]
@@ -123,32 +90,18 @@ namespace QuickAccessShell
         {
             Console.OutputEncoding = Encoding.UTF8;
 
-            Parser.Default.ParseArguments<ListOptions, AddOptions, RemoveOptions, ShowOptions, CheckOptions, EmptyOptions/*, TestOptions*/>(args)
+            QuickAccessHandler _handler = new QuickAccessHandler();
+
+            Parser.Default.ParseArguments<ListOptions, RemoveOptions, CheckOptions, EmptyOptions/*, TestOptions*/>(args)
                 .MapResult(
-                    (ListOptions _option) => HandleListOptions(_option),
-                    (AddOptions _option) => HandleAddOptions(args, _option),
-                    (RemoveOptions _option) => HandleRemoveOptions(args, _option),
-                    (ShowOptions _option) => HandleShowOptions(_option),
-                    (CheckOptions _option) => HandleCheckOptions(args, _option),
-                    (EmptyOptions _option) => HandleEmptyOptions(_option),
-                    //(TestOptions _option) => HandleTestOptions(_option),
+                    (ListOptions _option) => HandleListOptions(_option, _handler),
+                    (RemoveOptions _option) => HandleRemoveOptions(args, _option, _handler),
+                    (CheckOptions _option) => HandleCheckOptions(args, _option, _handler),
+                    (EmptyOptions _option) => HandleEmptyOptions(_option, _handler),
+                    //(TestOptions _option) => HandleTestOptions(_option, _handler),
                     error => -1
                 );
         }
-
-        //static int DisplayHelp<T>(ParserResult<T> result)
-        //{
-        //    var helpText = HelpText.AutoBuild(result, h =>
-        //    {
-        //        h.AdditionalNewLineAfterOption = false;
-        //        h.Heading = "QuickAccessShell 1.0";
-        //        h.Copyright = "Copyright (c) 2023 Steins";
-        //        return HelpText.DefaultParsingErrorsHandler(result, h);
-        //    }, e => e);
-        //    Console.WriteLine(helpText);
-
-        //    return -1;
-        //}
 
         private static string BuildOutputData(ArrayList input, string type, ArrayList debug)
         {
@@ -162,21 +115,21 @@ namespace QuickAccessShell
             return JsonConvert.SerializeObject(output);
         }
 
-        private static int HandleListOptions(ListOptions options)
+        private static int HandleListOptions(ListOptions options, QuickAccessHandler handler)
         {
             Dictionary<string, string> res;
 
             if (options.IsListRecentFiles)
             {
-                res = _handler.GetRecentFiles();
+                res = handler.GetRecentFiles();
             }
             else if (options.IsListFrequentFolders)
             {
-                res = _handler.GetFrequentFolders();
+                res = handler.GetFrequentFolders();
             }
             else
             {
-                res = _handler.GetQuickAccessDict();
+                res = handler.GetQuickAccessDict();
             }
 
             ArrayList _data = new ArrayList { };
@@ -185,57 +138,45 @@ namespace QuickAccessShell
                 _data.Add(item.Key);
             }
 
-            if (options.IsListSupportedLanguage)
-            {
-                _data = new ArrayList(_handler.GetSupportLanguages());
-            }
-
             ArrayList _debug = new ArrayList { };
             Console.WriteLine(BuildOutputData(_data, "list", _debug));
 
             return 0;
         }
 
-        private static int HandleAddOptions(IEnumerable<string> args, AddOptions options)
+        private static int HandleRemoveOptions(IEnumerable<string> args, RemoveOptions options, QuickAccessHandler handler)
         {
             ArrayList _data = new ArrayList { };
             ArrayList _debug = new ArrayList { };
 
-            foreach (var item in options.AddItems)
+            List<string> commandNameList = options.CommandNames.ToList<string>();
+            List<string> removeList = options.RemoveItems.ToList<string>();
+
+            if (commandNameList.Count > 0)
             {
-                _debug.Add(item);
-                _handler.AddToQuickAccess(item);
+                foreach (var name in commandNameList)
+                {
+                    handler.AddquickAccessCommandName(name);
+                }
             }
 
-            Thread.Sleep(500);
-
-            foreach (var item in options.AddItems)
+            CancellationTokenSource taskCancelToken = new CancellationTokenSource();
+            var task = Task.Factory.StartNew(() =>
             {
-                bool res = _handler.IsInQuickAccess(item);
+                handler.RemoveFromQuickAccess(removeList);
+            });
+            if (!task.Wait(10 * 1000, taskCancelToken.Token))
+            {
+                _debug.Add("remove timeout");
+                Console.Error.WriteLine("Remove function timeout");
 
-                _data.Add(res);
+                Console.WriteLine(BuildOutputData(_data, "remove", _debug));
+                return -1;
             }
 
-            Console.WriteLine(BuildOutputData(_data, "add", _debug));
-
-            return 0;
-        }
-
-        private static int HandleRemoveOptions(IEnumerable<string> args, RemoveOptions options)
-        {
-            ArrayList _data = new ArrayList { };
-            ArrayList _debug = new ArrayList { };
-
-            foreach (var item in options.RemoveItems)
+            foreach (var item in removeList)
             {
-                _handler.RemoveFromQuickAccess(item);
-            }
-
-            Thread.Sleep(500);
-
-            foreach (var item in options.RemoveItems)
-            {
-                bool res = _handler.IsInQuickAccess(item);
+                bool res = handler.IsInQuickAccess(item);
 
                 _data.Add(res);
             }
@@ -245,108 +186,33 @@ namespace QuickAccessShell
             return 0;
         }
 
-        private static int HandleShowOptions(ShowOptions options)
-        {
-            UInt32 accessType = 0;
-            bool isShow = options.IsShow;
-
-            if (options.IsShowAll)
-            {
-                accessType = 0;
-            }
-            else if (options.IsShowFrequentFolders)
-            {
-                accessType = 1;
-            }
-            else if (options.IsShowRecentFiles)
-            {
-                accessType = 2;
-            }
-            else if (options.IsShowQuickAccessMenu)
-            {
-                accessType = 3;
-            }
-
-            if (options.IsShowAll || options.IsShowQuickAccessMenu)
-            {
-                if (!_handler.IsAdminPrivilege())
-                {
-                    ArrayList res = new ArrayList { };
-
-                    res.Add("Admin Privilege required.");
-
-                    ArrayList _debug = new ArrayList { };
-                    Console.WriteLine(BuildOutputData(res, "error", _debug));
-
-                    return 0;
-                }
-            }
-
-            _handler.UpdateShowQuickAccess(accessType, isShow);
-
-            return 0;
-        }
-
-        private static int HandleCheckOptions(IEnumerable<string> args, CheckOptions options)
+        private static int HandleCheckOptions(IEnumerable<string> args, CheckOptions options, QuickAccessHandler handler)
         {
             ArrayList res = new ArrayList { };
 
-            if (!options.IsInQuickAccess && (options.IsShowAll || options.IsShowRecentFiles || options.IsShowFrequentFolders || options.IsShowQuickAccessMenu))
+            List<string> commandNameList = options.CommandNames.ToList<string>();
+
+            if (commandNameList.Count > 0)
             {
-                UInt32 accessType = 0;
-
-                if (options.IsShowAll)
+                foreach (var name in commandNameList)
                 {
-                    accessType = 0;
+                    handler.AddquickAccessCommandName(name);
                 }
-                else if (options.IsShowFrequentFolders)
-                {
-                    accessType = 1;
-                }
-                else if (options.IsShowRecentFiles)
-                {
-                    accessType = 2;
-                }
-                else if (options.IsShowQuickAccessMenu)
-                {
-                    accessType = 3;
-                }
-
-                res.Add(_handler.IsShowQuickAccess(accessType));
             }
-            else if (options.IsInQuickAccess)
+
+            if (options.IsInQuickAccess)
             {
                 foreach (var item in options.Target)
                 {
-                    bool isInQuickAccess = _handler.IsInQuickAccess(item);
+                    bool isInQuickAccess = handler.IsInQuickAccess(item);
                     res.Add(isInQuickAccess);
                 }
             }
-            else if (options.IsCheckSupportedLanguage)
+            else if (options.IsSupportedSystem)
             {
-                var TargetCount = 0;
+                bool isSupported = handler.IsSupportedSystem();
 
-                foreach (var item in options.Target)
-                {
-                    TargetCount += 1;
-                    bool isSupportedLang = _handler.IsSupportedQuickAccessLanguage(item);
-                    res.Add(isSupportedLang);
-                }
-
-                if (TargetCount == 0)
-                {
-                    bool isSupportedLang = false;
-                    CultureInfo ci = CultureInfo.CurrentCulture;
-                    Console.WriteLine("Current Language Info: {0}", ci.Name);
-
-                    ArrayList CurSupportLanguageList = new ArrayList(_handler.GetSupportLanguages());
-                    if (CurSupportLanguageList.Contains(ci.Name))
-                    {
-                        isSupportedLang = true;
-                    }
-
-                    res.Add(isSupportedLang);
-                }
+                res.Add(isSupported);
             }
 
             ArrayList _debug = new ArrayList { };
@@ -355,19 +221,19 @@ namespace QuickAccessShell
             return 0;
         }
 
-        private static int HandleEmptyOptions(EmptyOptions options)
+        private static int HandleEmptyOptions(EmptyOptions options, QuickAccessHandler handler)
         {
             if (options.IsEmptyAll)
             {
-                _handler.EmptyQuickAccess();
+                handler.EmptyQuickAccess();
             }
             else if (options.IsEmptyRecentFiles)
             {
-                _handler.EmptyRecentFiles();
+                handler.EmptyRecentFiles();
             }
             else if (options.IsEmptyFrequentFolders)
             {
-                _handler.EmptyFrequentFolders();
+                handler.EmptyFrequentFolders();
             }
 
             return 0;
