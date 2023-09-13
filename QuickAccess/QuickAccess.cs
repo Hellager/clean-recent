@@ -831,17 +831,43 @@ namespace QuickAccess
         }
 
         /// <summary>
+        /// Get the quick access items' paths in list. <br />
+        /// </summary>
+        /// <returns>
+        /// Quick access items' paths in list.
+        /// </returns>
+        public List<string> GetQuickAccessList()
+        {
+            CheckQuickAccess();
+
+            return this.quickAccessDict.Keys.ToList<string>();
+        }
+
+        /// <summary>
         /// Get the frequent folders in quick access in dictionary. <br />
         /// Key for folder path, value for folder name.
         /// </summary>
         /// <returns>
         /// Frequent folders in dictionary.
         /// </returns>
-        public Dictionary<string, string> GetFrequentFolders()
+        public Dictionary<string, string> GetFrequentFoldersDict()
         {
             CheckQuickAccess();
 
             return this.frequentFolders;
+        }
+
+        /// <summary>
+        /// Get the frequent folders' paths in quick access in list. <br />
+        /// </summary>
+        /// <returns>
+        /// Frequent folders' paths in list.
+        /// </returns>
+        public List<string> GetFrequentFoldersList()
+        {
+            CheckQuickAccess();
+
+            return this.frequentFolders.Keys.ToList<string>();
         }
 
         /// <summary>
@@ -851,11 +877,24 @@ namespace QuickAccess
         /// <returns>
         /// Recent files in dictionary.
         /// </returns>
-        public Dictionary<string, string> GetRecentFiles()
+        public Dictionary<string, string> GetRecentFilesDict()
         {
             CheckQuickAccess();
 
             return this.recentFiles;
+        }
+
+        /// <summary>
+        /// Get the recent files' paths in quick access in list. <br />
+        /// </summary>
+        /// <returns>
+        /// Recent files' paths in list.
+        /// </returns>
+        public List<string> GetRecentFilesList()
+        {
+            CheckQuickAccess();
+
+            return this.recentFiles.Keys.ToList<string>();
         }
 
         /// <summary>
@@ -1170,6 +1209,26 @@ namespace QuickAccess
         }
 
         /// <summary>
+        /// Remove given paths from quick access.
+        /// </summary>
+        /// (<paramref name="paths"/>).
+        /// <param><c>data</c> Given paths list.</param>
+        public void RemovePathsFromQuickAccess(List<string> paths)
+        {
+            this.RemoveFromQuickAccess(paths);
+        }
+
+        /// <summary>
+        /// Remove given keywords from quick access.
+        /// </summary>
+        /// (<paramref name="paths"/>).
+        /// <param><c>data</c> Given paths list.</param>
+        public void RemoveKeywordsFromQuickAccess(List<string> keywords)
+        {
+            this.RemoveFromQuickAccess(keywords);
+        }
+
+        /// <summary>
         /// Remove given data from quick access.
         /// </summary>
         /// (<paramref name="data"/>).
@@ -1205,7 +1264,7 @@ namespace QuickAccess
         public void EmptyRecentFiles()
         {
             // SHAddToRecentDocs(ShellAddToRecentDocsFlags.SHARD_PIDL, null);
-            this.RemoveFromQuickAccessWithList(this.GetRecentFiles().Keys.ToList<string>());
+            this.RemoveFromQuickAccessWithList(this.GetRecentFilesList());
         }
 
         /// <summary>
@@ -1213,7 +1272,7 @@ namespace QuickAccess
         /// </summary>
         public void EmptyFrequentFolders()
         {
-            this.RemoveFromQuickAccessWithList(this.GetFrequentFolders().Keys.ToList<string>());
+            this.RemoveFromQuickAccessWithList(this.GetFrequentFoldersList());
         }
 
         /// <summary>
