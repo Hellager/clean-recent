@@ -1,31 +1,26 @@
 {
   "name": "clean-recent",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri",
-    "updater": "node scripts/updater.mjs",
-    "publish": "node scripts/publish.mjs"
+    "tauri": "tauri"
   },
   "dependencies": {
-    "@tauri-apps/api": "^1.2.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-opener": "^2"
   },
   "devDependencies": {
-    "@actions/github": "^5.1.1",
-    "@tauri-apps/cli": "^1.2.2",
-    "@types/node": "^18.7.10",
-    "@types/react": "^18.0.15",
-    "@types/react-dom": "^18.0.6",
-    "@vitejs/plugin-react": "^3.0.0",
-    "fs-extra": "^11.1.1",
-    "node-fetch": "^3.3.1",
-    "typescript": "^4.6.4",
-    "vite": "^4.0.0"
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.3",
+    "@tauri-apps/cli": "^2"
   }
 }
